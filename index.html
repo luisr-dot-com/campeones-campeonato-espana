@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campeones: Oliver y Benji - Campeonato de España</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero anime-hero league-hero">
+    <nav class="nav container">
+      <a class="brand" href="#campeonato" id="brandHome">
+        <span class="brand-main">CAMPEONES</span>
+              </a>
+      <div class="nav-links">
+        <a href="#campeonato" id="championshipLink">Campeonato</a>
+        <a href="#participantes" id="participantsLink">Participantes</a>
+        <a href="#reglamento" id="rulesLink">Reglamento</a>
+      </div>
+    </nav>
+    <div class="hero-content container league-hero-content">
+      <div class="hero-copy">
+        <p class="eyebrow">CAMPEONES · OLIVER Y BENJI</p>
+        <h1>Campeonato<br><span>de España</span></h1>
+      </div>
+    </div>
+  
+      <div class="trophy-frame">
+        <img src="assets/trofeo-recortado.png" alt="Trofeo Liga de Campeones">
+      </div>
+  </header>
+
+  <main>
+  <section id="championshipPage" class="app-page">
+    <div id="divisionBanner" class="division-banner division-theme-1">
+      <div class="container">
+        <span class="division-kicker">CAMPEONATO DE ESPAÑA</span>
+        <strong id="divisionBannerTitle">1ª División</strong>
+      </div>
+    </div>
+
+    <div class="container championship-shell">
+      <div class="division-tabs" id="divisionTabs"></div>
+
+      <section id="clasificacion" class="section compact-section">
+        <h2 class="content-title">Clasificación</h2>
+        <div class="table-wrap">
+          <table id="standingsTable">
+            <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="legend legend-below" id="divisionLegend">
+          <span id="legendPromotion"><i class="legend-dot champion"></i> Campeón</span>
+          <span id="legendRelegation"><i class="legend-dot relegation"></i> Descenso</span>
+        </div>
+      </section>
+
+      <section id="calendario" class="section compact-section calendar-section">
+        <h2 class="content-title">Calendario</h2>
+        <div id="calendarRounds" class="calendar-rounds"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="participantsPage" class="app-page" hidden>
+    <div class="page-hero participants-hero">
+      <div class="container">
+        <p class="eyebrow">CAMPEONATO DE ESPAÑA</p>
+        <h2>Participantes</h2>
+      </div>
+    </div>
+    <div class="container participants-page-content">
+      <div id="allParticipants" class="all-participants"></div>
+    </div>
+  </section>
+
+  <section id="rulesPage" class="app-page" hidden>
+    <div class="page-hero rules-hero">
+      <div class="container">
+        <p class="eyebrow">CAMPEONATO DE ESPAÑA</p>
+        <h2>Reglamento</h2>
+      </div>
+    </div>
+    <div class="container rules-content">
+      <section id="reglamento" class="section">
+      <div class="section-heading">
+        <div><p class="eyebrow dark">Normativa</p><h2>Reglamento del campeonato</h2></div>
+        <p class="section-note">Sistema inspirado en la clasificación de la Primera División española, adaptado al juego Campeones.</p>
+      </div>
+
+      <div class="regulation">
+        <article><span class="rule-no">01</span><div>
+          <h3>Composición de las divisiones</h3>
+          <p>Las divisiones estarán formadas por <strong>8 equipos</strong>, salvo la <strong>última división</strong>, cuyo número de equipos variará en función del número de participantes inscritos en cada temporada.</p>
+          <p>Al finalizar la temporada, los <strong>dos primeros clasificados ascienden</strong> a la división inmediatamente superior y los <strong>dos últimos descienden</strong> a la división inmediatamente inferior. En Primera División no hay ascenso: el primer clasificado será el campeón de Liga. En la última división no hay descenso.</p>
+        </div></article>
+
+        <article><span class="rule-no">02</span><div>
+          <h3>Puntuación y desempates</h3>
+          <p>La puntuación será de <strong>3 puntos por victoria, 1 por empate y 0 por derrota</strong>.</p>
+          <p>En caso de empate a puntos, se aplicarán por orden los siguientes criterios:</p>
+          <ol>
+            <li><strong>Goal average particular:</strong> primará el resultado del partido entre los equipos empatados.</li>
+            <li>Si ese partido terminó empatado, se utilizará el <strong>goal average general</strong>: goles a favor menos goles en contra en el conjunto de la Liga.</li>
+            <li>Si el empate persiste, se tendrá en cuenta el <strong>desempate realizado por BGA</strong>, basado en el ELO de los rivales vencidos.</li>
+          </ol>
+          <p class="rule-alert"><strong>Importante:</strong> por este sistema de desempate, la clasificación mostrada por los torneos de BGA puede diferir de la clasificación final oficial de esta Liga.</p>
+        </div></article>
+
+        <article><span class="rule-no">03</span><div>
+          <h3>Resultados y clasificación oficial</h3>
+          <p>La web toma los resultados publicados por <strong>Board Game Arena (BGA)</strong> y, a partir de ellos, confecciona la clasificación de la Liga aplicando estas normas.</p>
+          <p>El resultado válido será el que figure <strong>al final del partido</strong>; por tanto, se incluye la prórroga que se juega cuando el partido termina empatado al final del tiempo reglamentario.</p>
+        </div></article>
+
+        <article><span class="rule-no">04</span><div>
+          <h3>Configuración de las partidas</h3>
+          <p>Se jugará la versión con la <strong>expansión Otomo</strong>, con <strong>fichajes y motivación activados</strong>.</p>
+        </div></article>
+
+        <article><span class="rule-no">05</span><div>
+          <h3>Formato de la Liga</h3>
+          <p>La Liga se jugará <strong>a una sola vuelta</strong>. Cada participante se enfrentará una vez al resto de equipos de su división.</p>
+        </div></article>
+
+        <article><span class="rule-no">06</span><div>
+          <h3>Duración de los partidos y de la temporada</h3>
+          <p>La duración de los partidos será, en principio, de <strong>7 días</strong>. <strong>No estará permitido saltar el turno del rival.</strong></p>
+          <p>Cada temporada tendrá una duración aproximada de <strong>dos meses</strong>. Cuando esos dos meses coincidan con épocas especiales, como <strong>Navidades, verano o Semana Santa</strong>, se estudiará ampliar la duración o incluso pausar la Liga.</p>
+        </div></article>
+
+        <article><span class="rule-no">07</span><div>
+          <h3>Renuncias temporales y bajas</h3>
+          <p>Cualquier jugador o jugadora que, por motivos personales, considere que no va a disponer de tiempo para jugar podrá <strong>renunciar antes de comenzar la temporada</strong>.</p>
+          <p>Su hueco en la división que le correspondiera jugar se mantendrá durante <strong>dos temporadas</strong>. Pasado ese plazo, si decide regresar tendrá que hacerlo desde la división más baja, igual que cualquier jugador nuevo.</p>
+          <p>En caso de bajas, tanto temporales como definitivas, los huecos en las divisiones se rellenarán <strong>evitando el descenso del jugador o jugadora mejor clasificado entre quienes hubieran descendido</strong>.</p>
+        </div></article>
+
+        <article><span class="rule-no">08</span><div>
+          <h3>Copa y Supercopa</h3>
+          <p>Además de la Liga, se disputarán torneos de <strong>Copa</strong>, mediante eliminación sencilla y con la opción de ida y vuelta activada.</p>
+          <p>También se disputará la <strong>Supercopa</strong>, mediante un enfrentamiento a ida y vuelta entre el ganador de la Liga y el ganador de la Copa.</p>
+        </div></article>
+      </div>
+    </section>
+    </div>
+  </section>
+</main>
+
+  <footer>
+    <div class="container footer-inner">
+      <strong>Campeones: Oliver y Benji - Campeonato de España</strong>
+      <span>Partidas disputadas en Board Game Arena</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
