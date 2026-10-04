@@ -1,15 +1,20 @@
-# Campeones: Oliver y Benji — Campeonato de España · V15
+# Campeones · Campeonato de España · V17
 
-Actualización sobre V14:
-- 2ª División conectada al torneo BGA `608411`.
-- Jornada 1 (y siguientes cuando existan) usa exclusivamente los emparejamientos reales de cada `Paso` de BGA.
-- Jornadas futuras todavía no generadas muestran `Pendiente de generación en BGA`; no se inventan enfrentamientos.
-- Marcador y fase (`1ª Parte`, `2ª Parte`, `Prórroga`) se consultan a través del Worker.
-- La clasificación incorpora una columna ELO con el ELO específico de Campeones devuelto por el Worker.
-- Los resultados solo computan en la clasificación cuando el partido figura finalizado y existe marcador.
-- Desempates: particular, diferencia general y, si ambos ya han jugado y persiste el empate, orden de desempate devuelto por BGA.
-- Nombres de equipo actualizados según la lista comunicada el 01/10/2026.
-- Participantes conserva el encabezado visible `EQUIPO | JUGADOR | DIVISIÓN`.
+Cambios principales:
+- Las seis divisiones quedan conectadas a sus torneos BGA:
+  - 1ª: 608407
+  - 2ª: 608411
+  - 3ª: 608412
+  - 4ª: 608414
+  - 5ª: 608415
+  - 6ª: 608409
+- El roster de cada división se sincroniza con los jugadores reales del torneo BGA.
+- Participantes muestra EQUIPO · JUGADOR · ELO · DIVISIÓN y se ordena por ELO descendente conforme se cargan los seis torneos.
+- La clasificación incorpora temporalmente los marcadores de partidos en curso y marca esos equipos con “En juego”.
+- Botón “Actualizar datos” compacto junto a las pestañas de división, con hora de última actualización debajo.
+- Nombres de equipo alineados a la izquierda.
+- 4ª división: imagen desplazada a la izquierda.
+- 5ª división: nuevo fondo de guardameta de cuerpo entero en assets/ed-warner-full.png.
+- Jornadas futuras: “Pendiente de generación en BGA” hasta que BGA cree cada paso.
 
-La web no contiene cookies ni secretos de BGA. La autenticación permanece exclusivamente en Cloudflare Worker (`BGA_COOKIE`).
-El Worker V3 detecta dinámicamente el `gameServer` de cada mesa, por lo que la web no depende de una versión fija como `/14/`.
+El Worker V3 no necesita cambios.

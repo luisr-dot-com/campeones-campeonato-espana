@@ -1104,3 +1104,114 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
 }
 .participants-table th:nth-child(3){text-align:center}
 .participants-table{min-width:680px}
+
+/* ===== V17 · seis divisiones + clasificación en directo + ajustes visuales ===== */
+
+/* Controles de división y actualización en una sola línea. */
+.division-controls-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:start;
+  gap:18px;
+  margin-bottom:16px;
+}
+.division-controls-row .division-tabs{margin-bottom:0!important}
+.bga-sync{
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  backdrop-filter:none!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-end!important;
+  justify-content:flex-start!important;
+  gap:3px!important;
+  min-width:146px;
+}
+.bga-sync button{
+  min-width:132px;
+  padding:9px 14px!important;
+  border-radius:8px!important;
+  font-size:14px;
+}
+.bga-sync button:disabled{opacity:.65;cursor:wait}
+.bga-updated{
+  display:block;
+  padding-right:2px;
+  color:#6b7f90;
+  font-size:10px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+/* Nombres de equipo siempre alineados con el encabezado Equipo. */
+#standingsTable th:nth-child(2),
+#standingsTable td:nth-child(2),
+#standingsTable .player-name,
+.participants-table th:first-child,
+.participants-table td:first-child,
+.participants-table .team-name{
+  text-align:left!important;
+}
+
+/* Etiqueta discreta para equipos cuyo partido sigue en curso. */
+.standings-team{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+  min-width:0;
+}
+.in-play-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+  padding:3px 8px;
+  border:1px solid #e7a83d;
+  border-radius:999px;
+  background:#fff4dc;
+  color:#9a5a05;
+  font-size:9px;
+  line-height:1.1;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.045em;
+}
+
+/* 4ª: desplazamos el personaje claramente a la izquierda para que la tabla no lo tape. */
+#championshipPage.division-theme-4{
+  background-size:cover,780px auto!important;
+  background-position:center,-285px 142px!important;
+}
+
+/* 5ª: nuevo guardameta de cuerpo entero, encuadre amplio y casi completo. */
+#championshipPage.division-theme-5{
+  --character-image:url("assets/ed-warner-full.png")!important;
+  background-size:cover,610px auto!important;
+  background-position:center,-22px 126px!important;
+}
+.division-theme-5{
+  --character-image:url("assets/ed-warner-full.png")!important;
+}
+
+@media(max-width:900px){
+  .division-controls-row{grid-template-columns:1fr;gap:8px}
+  .bga-sync{align-items:flex-end!important}
+  #championshipPage.division-theme-4{
+    background-size:cover,650px auto!important;
+    background-position:center,-260px 125px!important;
+  }
+  #championshipPage.division-theme-5{
+    background-size:cover,520px auto!important;
+    background-position:center,-70px 118px!important;
+  }
+}
+
+@media(max-width:650px){
+  .bga-sync{align-items:flex-start!important}
+  .bga-updated{padding-left:2px;padding-right:0}
+  .standings-team{gap:6px}
+  .in-play-badge{font-size:8px;padding:3px 6px}
+}

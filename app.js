@@ -100,7 +100,12 @@ divisions[3].name = "3ª División";
 
 const WORKER_URL = "https://campeones-bga-api.luis-rosaperez.workers.dev";
 const tournamentByDivision = {
-  2: "608411"
+  1: "608407",
+  2: "608411",
+  3: "608412",
+  4: "608414",
+  5: "608415",
+  6: "608409"
 };
 
 const liveState = Object.fromEntries(
@@ -165,12 +170,15 @@ function dynamicMatch(div, a, b) {
   return liveState[div]?.matches.get(pairKey(a,b)) || null;
 }
 
-function completedResults(div) {
+function classificationResults(div) {
   const state = liveState[div];
   if (!state?.loaded) return [];
+
+  // La clasificación es "en directo": incorpora tanto los partidos finalizados
+  // como el marcador actual de los que siguen en juego.
   return [...state.matches.values()]
-    .filter(m => m.status === "finished" && Number.isFinite(m.aScore) && Number.isFinite(m.bScore))
-    .map(m => [m.a, m.b, m.aScore, m.bScore]);
+    .filter(m => ["finished", "live"].includes(m.status) && Number.isFinite(m.aScore) && Number.isFinite(m.bScore))
+    .map(m => [m.a, m.b, m.aScore, m.bScore, m.status === "live"]);
 }
 
 function directResult(results, a, b) {
@@ -182,7 +190,7 @@ function directResult(results, a, b) {
 
 function standings(div) {
   const ps = divisionPlayers(div);
-  const rs = completedResults(div);
+  const rs = classificationResults(div);
   const state = liveState[div];
 
   ps.forEach(p => {
@@ -190,13 +198,20 @@ function standings(div) {
     p.bgaDisplayRank = state?.bgaDisplayRankByPlayer?.get(normalizeName(p.name)) ?? null;
   });
 
-  rs.forEach(([home, away, hs, as]) => {
+  rs.forEach(([home, away, hs, as, isLive]) => {
     const a = ps.find(p => normalizeName(p.name) === normalizeName(home));
     const b = ps.find(p => normalizeName(p.name) === normalizeName(away));
     if (!a || !b) return;
+
     a.pj++; b.pj++;
     a.gf += hs; a.gc += as;
     b.gf += as; b.gc += hs;
+
+    if (isLive) {
+      a.live = true;
+      b.live = true;
+    }
+
     if (hs > as) { a.pg++; b.pp++; a.pts += 3; }
     else if (hs < as) { b.pg++; a.pp++; b.pts += 3; }
     else { a.pe++; b.pe++; a.pts++; b.pts++; }
@@ -247,7 +262,8 @@ function renderStandings() {
     const promoted = activeDivision === 1 ? i === 0 : i < 2;
     const relegated = activeDivision < lastDivision && i >= rows.length - 2;
     return `<tr class="${promoted?"promoted":relegated?"relegated":""}">
-      <td class="position">${i+1}</td><td class="player-name">${teamOf(p.name)}</td>
+      <td class="position">${i+1}</td>
+      <td class="player-name"><div class="standings-team"><span>${teamOf(p.name)}</span>${p.live ? '<span class="in-play-badge">En juego</span>' : ''}</div></td>
       <td>${p.pj}</td><td>${p.pg}</td><td>${p.pe}</td><td>${p.pp}</td>
       <td>${p.gf}</td><td>${p.gc}</td><td>${p.gf-p.gc}</td><td class="points">${p.pts}</td>
     </tr>`;
@@ -375,7 +391,9 @@ function ensureSyncBox() {
     box = document.createElement("div");
     box.id = "bgaSyncStatus";
     box.className = "bga-sync";
-    document.querySelector("#divisionTabs")?.insertAdjacentElement("afterend", box);
+    const row = document.querySelector("#divisionControlsRow");
+    if (row) row.appendChild(box);
+    else document.querySelector("#divisionTabs")?.insertAdjacentElement("afterend", box);
   }
   return box;
 }
@@ -390,33 +408,23 @@ function renderSyncStatus() {
 
   box.hidden = false;
   const state = liveState[activeDivision];
+  const time = state?.updatedAt
+    ? state.updatedAt.toLocaleTimeString("es-ES", {hour:"2-digit", minute:"2-digit"})
+    : "";
 
-  if (state.loading) {
-    box.innerHTML = `<span><strong>BGA:</strong> actualizando torneo ${tournamentId}…</span>`;
-    return;
-  }
+  const label = state?.loading ? "Actualizando…" : "Actualizar datos";
+  const note = state?.error
+    ? "No se pudo actualizar"
+    : (time ? `actualizado ${time}` : "");
 
-  if (state.error) {
-    box.innerHTML = `<span><strong>BGA:</strong> no se pudieron actualizar los datos.</span><button type="button" id="retryBga">Reintentar</button>`;
-    document.querySelector("#retryBga")?.addEventListener("click", () => loadDivisionLiveData(activeDivision, true));
-    return;
-  }
+  box.innerHTML = `
+    <button type="button" id="retryBga" ${state?.loading ? "disabled" : ""}>${label}</button>
+    ${note ? `<small class="bga-updated">${note}</small>` : ""}
+  `;
 
-  if (!state.loaded) {
-    box.innerHTML = `<span><strong>BGA:</strong> torneo ${tournamentId} preparado para sincronización.</span>`;
-    return;
-  }
-
-  if (!state.tournamentStarted) {
-    box.innerHTML = `<span><strong>BGA:</strong> torneo ${tournamentId} todavía sin partidos publicados.</span><button type="button" id="retryBga">Actualizar</button>`;
-  } else {
-    const count = state.matches.size;
-    const generatedRounds = state.rounds.size;
-    const eloCount = state.eloByPlayer.size;
-    const time = state.updatedAt ? state.updatedAt.toLocaleTimeString("es-ES", {hour:"2-digit", minute:"2-digit"}) : "";
-    box.innerHTML = `<span><strong>BGA conectado:</strong> ${generatedRounds} jornada${generatedRounds===1?"":"s"} generada${generatedRounds===1?"":"s"} · ${count} partidos enlazados · ${eloCount} ELO${time ? ` · actualizado ${time}` : ""}.</span><button type="button" id="retryBga">Actualizar</button>`;
-  }
-  document.querySelector("#retryBga")?.addEventListener("click", () => loadDivisionLiveData(activeDivision, true));
+  document.querySelector("#retryBga")?.addEventListener("click", () => {
+    loadDivisionLiveData(activeDivision, true);
+  });
 }
 
 function renderChampionship() {
@@ -440,8 +448,24 @@ function firstDefined(obj, keys) {
   return null;
 }
 
+function syncLeagueRosterFromOverview(data, div) {
+  const collection = normalizeCollection(data?.players);
+  const names = collection.map(p => {
+    if (typeof p === "string") return p;
+    return firstDefined(p, ["name", "player_name", "playerName"]);
+  }).filter(Boolean).map(String);
+
+  // El torneo BGA es la fuente de verdad de quién compite en cada división.
+  // Conservamos el orden que devuelve BGA; los nombres de equipo se resuelven
+  // aparte con teamNamesRaw.
+  if (names.length >= 2) {
+    leagueData[String(div)] = names.map(name => ({name}));
+  }
+}
+
 function parseOverview(raw, div) {
   const data = raw?.data ?? raw ?? {};
+  syncLeagueRosterFromOverview(data, div);
   const playerNameById = new Map();
   const eloByPlayer = new Map();
   const bgaDisplayRankByPlayer = new Map();
@@ -570,7 +594,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 function matchCacheKey(tableId) {
-  return `campeones-bga-match-v16-${tableId}`;
+  return `campeones-bga-match-v17-${tableId}`;
 }
 
 function readCachedMatch(tableId, finished) {
