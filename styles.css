@@ -1038,3 +1038,36 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
     background-position:center,-180px 128px!important;
   }
 }
+
+/* ===== V14 · sincronización BGA ===== */
+.bga-sync{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:0 0 16px;
+  padding:10px 12px;
+  border:1px solid rgba(9,78,140,.18);
+  border-radius:10px;
+  background:rgba(255,255,255,.78);
+  color:#315b80;
+  font-size:12px;
+  font-weight:700;
+  backdrop-filter:blur(2px);
+}
+.bga-sync strong{color:#0b4f8f}
+.bga-sync button{
+  appearance:none;
+  border:1px solid #0b4f8f;
+  border-radius:8px;
+  padding:6px 10px;
+  background:#fff;
+  color:#0b4f8f;
+  font-weight:900;
+  cursor:pointer;
+}
+.bga-sync button:hover{background:#edf5fb}
+@media(max-width:700px){
+  .bga-sync{align-items:flex-start;flex-direction:column}
+}
+\n\n/* ===== V15 · jornadas BGA + ELO ===== */\n.elo-cell{font-weight:900;color:#0b4f8f;white-space:nowrap}\n.round-pending{\n  display:flex;align-items:center;justify-content:center;min-height:62px;padding:14px 18px;\n  border:1px dashed #b7c8d7;border-radius:9px;background:rgba(247,250,252,.82);\n  color:#64788b;font-size:13px;font-weight:800;text-align:center;letter-spacing:.01em\n}\n.round-error{border-color:#e5b4b4;background:#fff5f5;color:#9b4141}\n.round-awaiting{opacity:.92}\n#standingsTable th:nth-child(3),#standingsTable td:nth-child(3){text-align:center}\n@media(max-width:700px){\n  #standingsTable{min-width:760px}\n  .round-pending{min-height:54px}\n}\n
