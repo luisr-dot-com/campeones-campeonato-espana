@@ -1071,3 +1071,36 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
   .bga-sync{align-items:flex-start;flex-direction:column}
 }
 \n\n/* ===== V15 · jornadas BGA + ELO ===== */\n.elo-cell{font-weight:900;color:#0b4f8f;white-space:nowrap}\n.round-pending{\n  display:flex;align-items:center;justify-content:center;min-height:62px;padding:14px 18px;\n  border:1px dashed #b7c8d7;border-radius:9px;background:rgba(247,250,252,.82);\n  color:#64788b;font-size:13px;font-weight:800;text-align:center;letter-spacing:.01em\n}\n.round-error{border-color:#e5b4b4;background:#fff5f5;color:#9b4141}\n.round-awaiting{opacity:.92}\n#standingsTable th:nth-child(3),#standingsTable td:nth-child(3){text-align:center}\n@media(max-width:700px){\n  #standingsTable{min-width:760px}\n  .round-pending{min-height:54px}\n}\n
+
+/* ===== V16 · estado coherente + ELO en participantes ===== */
+/* La clasificación no muestra ELO: el ELO pertenece al directorio de participantes. */
+#standingsTable{min-width:700px}
+
+/* Encabezado de Participantes reforzado: siempre visible. */
+.participants-table thead{
+  display:table-header-group!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.participants-table thead th{
+  display:table-cell!important;
+  position:static!important;
+  visibility:visible!important;
+  opacity:1!important;
+  background:linear-gradient(#0d579d,#083e78)!important;
+  color:#fff!important;
+  padding:14px 18px!important;
+  border-bottom:4px solid #ffd12f!important;
+  font-size:12px!important;
+  font-weight:900!important;
+  text-transform:uppercase!important;
+  letter-spacing:.055em!important;
+}
+.participant-elo{
+  font-weight:900;
+  color:#0b4f8f;
+  text-align:center;
+  white-space:nowrap;
+}
+.participants-table th:nth-child(3){text-align:center}
+.participants-table{min-width:680px}

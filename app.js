@@ -246,9 +246,8 @@ function renderStandings() {
   document.querySelector("#standingsTable tbody").innerHTML = rows.map((p,i) => {
     const promoted = activeDivision === 1 ? i === 0 : i < 2;
     const relegated = activeDivision < lastDivision && i >= rows.length - 2;
-    const elo = Number.isFinite(p.elo) ? p.elo : "—";
     return `<tr class="${promoted?"promoted":relegated?"relegated":""}">
-      <td class="position">${i+1}</td><td class="player-name">${teamOf(p.name)}</td><td class="elo-cell">${elo}</td>
+      <td class="position">${i+1}</td><td class="player-name">${teamOf(p.name)}</td>
       <td>${p.pj}</td><td>${p.pg}</td><td>${p.pe}</td><td>${p.pp}</td>
       <td>${p.gf}</td><td>${p.gc}</td><td>${p.gf-p.gc}</td><td class="points">${p.pts}</td>
     </tr>`;
@@ -258,7 +257,7 @@ function renderStandings() {
 function matchPresentation(div, a, b) {
   const match = dynamicMatch(div, a, b);
   if (!match) {
-    return {score:"0 <span>–</span> 0", status:"Sin comenzar", cls:"status-pending"};
+    return {score:"— <span>–</span> —", status:"Sin comenzar", cls:"status-pending"};
   }
 
   const aIsStoredA = normalizeName(match.a) === normalizeName(a);
@@ -273,7 +272,7 @@ function matchPresentation(div, a, b) {
   if (match.status === "live") {
     return {score, status:`En juego${match.phase ? ` · ${match.phase}` : ""}`, cls:"status-live"};
   }
-  return {score:"0 <span>–</span> 0", status:"Sin comenzar", cls:"status-pending"};
+  return {score:"— <span>–</span> —", status:"Sin comenzar", cls:"status-pending"};
 }
 
 function renderCalendar() {
@@ -341,15 +340,35 @@ function updateDivisionBanner() {
 
 function renderParticipants() {
   const rows = [];
-  Object.keys(divisions).forEach(d => leagueData[d].forEach(p => rows.push({
-    name:p.name, team:teamOf(p.name), division:divisions[d].name
-  })));
+
+  Object.keys(divisions).forEach(d => {
+    const div = Number(d);
+    leagueData[d].forEach(p => {
+      const elo = liveState[div]?.eloByPlayer?.get(normalizeName(p.name)) ?? null;
+      rows.push({
+        name: p.name,
+        team: teamOf(p.name),
+        division: divisions[d].name,
+        elo
+      });
+    });
+  });
+
+  // ELO conocido de mayor a menor. Los jugadores cuya división todavía no
+  // está conectada a BGA quedan al final hasta que incorporemos su torneo.
+  rows.sort((a,b) => {
+    const aHas = Number.isFinite(a.elo);
+    const bHas = Number.isFinite(b.elo);
+    if (aHas && bHas && b.elo !== a.elo) return b.elo - a.elo;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    return a.team.localeCompare(b.team, "es");
+  });
+
   document.querySelector("#allParticipants").innerHTML =
-    `<div class="participants-table-wrap"><table class="participants-table"><thead><tr><th>Equipo</th><th>Jugador</th><th>División</th></tr></thead><tbody>${rows.map(r =>
-      `<tr><td class="team-name">${r.team}</td><td>${r.name}</td><td><span class="division-pill">${r.division}</span></td></tr>`
+    `<div class="participants-table-wrap"><table class="participants-table"><thead><tr><th>Equipo</th><th>Jugador</th><th>ELO</th><th>División</th></tr></thead><tbody>${rows.map(r =>
+      `<tr><td class="team-name">${r.team}</td><td>${r.name}</td><td class="participant-elo">${Number.isFinite(r.elo) ? r.elo : "—"}</td><td><span class="division-pill">${r.division}</span></td></tr>`
     ).join("")}</tbody></table></div>`;
 }
-
 function ensureSyncBox() {
   let box = document.querySelector("#bgaSyncStatus");
   if (!box) {
@@ -489,7 +508,10 @@ function parseOverview(raw, div) {
       const progression = finiteNumber(firstDefined(match, ["tableProgression","table_progression","progression"]));
       const finished = [statusText, tableStatusText].some(s => /finished|complete|completed|archive|ended/.test(s));
       const cancelled = [statusText, tableStatusText].some(s => /cancel|void/.test(s));
-      const status = cancelled ? "pending" : (finished ? "finished" : (tableId ? "live" : "pending"));
+      // BGA crea la mesa antes de que el partido empiece. Un tableId con
+      // progresión 0 sigue siendo "Sin comenzar".
+      const hasStarted = tableId && progression !== null && progression > 0;
+      const status = cancelled ? "pending" : (finished ? "finished" : (hasStarted ? "live" : "pending"));
 
       const parsedMatch = {
         a, b,
@@ -548,7 +570,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 function matchCacheKey(tableId) {
-  return `campeones-bga-match-v15-${tableId}`;
+  return `campeones-bga-match-v16-${tableId}`;
 }
 
 function readCachedMatch(tableId, finished) {
@@ -587,8 +609,16 @@ async function enrichMatch(div, match, force=false) {
     if (name && score !== null) scoreByLeaguePlayer.set(normalizeName(name), score);
   });
 
-  const aScore = scoreByLeaguePlayer.get(normalizeName(match.a));
-  const bScore = scoreByLeaguePlayer.get(normalizeName(match.b));
+  let aScore = scoreByLeaguePlayer.get(normalizeName(match.a));
+  let bScore = scoreByLeaguePlayer.get(normalizeName(match.b));
+
+  // Si BGA confirma que la mesa está en juego (progresión > 0), el marcador
+  // mínimo válido es 0-0 aunque todavía no haya eventos de gol o suficientes
+  // eventos para asociar ambos jugadores a Nankatsu/Toho.
+  if (match.status === "live" && Number(match.progression) > 0) {
+    if (!Number.isFinite(aScore)) aScore = 0;
+    if (!Number.isFinite(bScore)) bScore = 0;
+  }
 
   return {
     ...match,
@@ -645,6 +675,7 @@ async function loadDivisionLiveData(div, force=false) {
     state.tournamentStarted = parsed.started;
     state.loaded = true;
     state.updatedAt = new Date();
+    renderParticipants();
   } catch (error) {
     console.error("BGA sync error", error);
     state.error = error?.message || String(error);
@@ -669,7 +700,11 @@ function showPage(page) {
 }
 
 document.querySelector("#championshipLink").onclick = e => { e.preventDefault(); showPage("championship"); };
-document.querySelector("#participantsLink").onclick = e => { e.preventDefault(); showPage("participants"); };
+document.querySelector("#participantsLink").onclick = e => {
+  e.preventDefault();
+  showPage("participants");
+  Object.keys(tournamentByDivision).forEach(div => maybeLoadLiveDivision(Number(div)));
+};
 document.querySelector("#rulesLink").onclick = e => { e.preventDefault(); showPage("rules"); };
 document.querySelector("#brandHome")?.addEventListener("click", e => { e.preventDefault(); showPage("championship"); });
 
