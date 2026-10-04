@@ -105,7 +105,7 @@ const tournamentByDivision = {
   3: "608412",
   4: "608414",
   5: "608415",
-  6: "608409"
+  6: "608416"
 };
 
 const liveState = Object.fromEntries(
@@ -511,16 +511,56 @@ function parseOverview(raw, div) {
     const stepNo = Number(stepNoRaw) || (stepIndex + 1);
     const stepMatches = [];
 
-    normalizeCollection(step?.matches).forEach(match => {
-      const playersRaw = normalizeCollection(match?.players);
-      const names = playersRaw.map(p => {
-        if (typeof p === "string") return playerNameById.get(String(p)) || p;
-        const id = firstDefined(p, ["player_id","playerId","id"]);
-        const directName = firstDefined(p, ["player_name","playerName","name"]);
+    normalizeCollection(step?.matches ?? step?.matchs ?? step?.games).forEach(match => {
+      // BGA no siempre serializa los jugadores de un partido igual: en unos
+      // torneos llegan como array con player_id y en otros como objeto cuyas
+      // claves SON los player_id. No usamos Object.values aqui porque perder
+      // esas claves hacia desaparecer partidos completos del calendario.
+      const playersSource = match?.players ?? match?.player ?? match?.participants;
+      const playerEntries = Array.isArray(playersSource)
+        ? playersSource.map((p, i) => [String(i), p])
+        : (playersSource && typeof playersSource === "object")
+          ? Object.entries(playersSource)
+          : [];
+
+      let names = playerEntries.map(([entryKey, p]) => {
+        if (typeof p === "string" || typeof p === "number") {
+          return playerNameById.get(String(p)) || (typeof p === "string" ? p : null);
+        }
+        if (!p || typeof p !== "object") return null;
+
+        const nested = p.player && typeof p.player === "object" ? p.player : null;
+        const id = firstDefined(p, ["player_id","playerId","id"])
+          ?? firstDefined(nested, ["player_id","playerId","id"])
+          ?? (/^\d+$/.test(entryKey) ? entryKey : null);
+        const directName = firstDefined(p, ["player_name","playerName","name","fullname","player_fullname"])
+          ?? firstDefined(nested, ["player_name","playerName","name","fullname","player_fullname"]);
         return directName || (id !== null ? playerNameById.get(String(id)) : null);
       }).filter(Boolean);
 
-      if (names.length !== 2) return;
+      // Fallback para variantes de BGA que exponen los dos jugadores como
+      // campos separados en lugar de dentro de match.players.
+      if (names.length !== 2) {
+        const fallbackIds = [
+          firstDefined(match, ["player1_id","player1Id","player_1_id","player1"]),
+          firstDefined(match, ["player2_id","player2Id","player_2_id","player2"])
+        ].filter(v => v !== null && v !== undefined);
+        if (fallbackIds.length === 2) {
+          const fallbackNames = fallbackIds.map(v => {
+            if (typeof v === "object") {
+              return firstDefined(v, ["player_name","playerName","name","fullname"])
+                || playerNameById.get(String(firstDefined(v, ["player_id","playerId","id"])));
+            }
+            return playerNameById.get(String(v)) || (typeof v === "string" && !/^\d+$/.test(v) ? v : null);
+          }).filter(Boolean);
+          if (fallbackNames.length === 2) names = fallbackNames;
+        }
+      }
+
+      if (names.length !== 2) {
+        console.warn("Partido BGA omitido: no se pudieron resolver exactamente 2 jugadores", {div, stepNo, match});
+        return;
+      }
 
       const a = canonicalLeaguePlayer(div, names[0]);
       const b = canonicalLeaguePlayer(div, names[1]);
@@ -594,7 +634,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 function matchCacheKey(tableId) {
-  return `campeones-bga-match-v17-${tableId}`;
+  return `campeones-bga-match-v18-${tableId}`;
 }
 
 function readCachedMatch(tableId, finished) {
