@@ -288,7 +288,13 @@ function matchPresentation(div, a, b) {
   }
   if (match.status === "live") {
     if (!hasScore) {
-      return {score, status:"Actualizando marcador…", cls:"status-pending"};
+      if (match.detailLoading) {
+        return {score, status:"Actualizando marcador…", cls:"status-pending"};
+      }
+      if (match.syncError) {
+        return {score, status:"Marcador no disponible", cls:"status-pending"};
+      }
+      return {score, status:"Marcador pendiente", cls:"status-pending"};
     }
     return {score, status:`En juego${match.phase ? ` · ${match.phase}` : ""}`, cls:"status-live"};
   }
@@ -610,16 +616,25 @@ function parseOverview(raw, div) {
   };
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url, {cache:"no-store"});
-  const text = await response.text();
-  let json;
-  try { json = JSON.parse(text); }
-  catch { throw new Error(`Respuesta no JSON (${response.status})`); }
-  if (!response.ok || String(json?.status) === "0") {
-    throw new Error(json?.error || `HTTP ${response.status}`);
+async function fetchJson(url, timeoutMs=20000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {cache:"no-store", signal:controller.signal});
+    const text = await response.text();
+    let json;
+    try { json = JSON.parse(text); }
+    catch { throw new Error(`Respuesta no JSON (${response.status})`); }
+    if (!response.ok || String(json?.status) === "0") {
+      throw new Error(json?.error || `HTTP ${response.status}`);
+    }
+    return json;
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Tiempo de espera agotado");
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
-  return json;
 }
 
 async function mapLimit(items, limit, worker) {
@@ -670,7 +685,7 @@ async function enrichMatch(div, match, force=false) {
 
   if (!detail) {
     const archived = match.status === "finished" ? "&archived=1" : "";
-    detail = await fetchJson(`${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}${archived}`);
+    detail = await fetchJson(`${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}${archived}`, 18000);
     cacheMatch(match.tableId, detail);
   }
 
@@ -715,53 +730,33 @@ async function loadDivisionLiveData(div, force=false) {
 
   try {
     const refreshElo = force ? "&refreshElo=1" : "";
-    const overview = await fetchJson(`${WORKER_URL}/?id=${encodeURIComponent(tournamentId)}${refreshElo}`);
+    const overview = await fetchJson(`${WORKER_URL}/?id=${encodeURIComponent(tournamentId)}${refreshElo}`, 20000);
     const parsed = parseOverview(overview, div);
-
-    // Las mesas de Campeones hacen bastantes consultas a BGA para detectar
-    // el game server y reconstruir el marcador. Si lanzamos los cuatro
-    // partidos de una jornada a la vez, BGA puede rechazar algunas peticiones
-    // de forma intermitente. Los enriquecemos de uno en uno y reintentamos.
     const previousMatches = state.matches;
 
-    const enriched = await mapLimit(parsed.matches, 1, async match => {
-      if (!match.tableId || match.status === "pending") return match;
-
-      let lastError = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          return await enrichMatch(div, match, force && attempt === 0);
-        } catch (error) {
-          lastError = error;
-          if (attempt < 2) await wait(350 * (attempt + 1));
-        }
-      }
-
-      console.warn("No se pudo enriquecer una mesa BGA tras varios intentos", {
-        div, tableId: match.tableId, error: lastError
-      });
-
-      // Nunca hacemos desaparecer un emparejamiento que sí existe en BGA.
-      // Si ya teníamos un dato anterior de esa mesa, lo conservamos.
-      return previousMatches.get(pairKey(match.a, match.b)) || {
+    // V20: el overview es la fuente de verdad de los emparejamientos y se
+    // pinta inmediatamente. La consulta del marcador de una mesa no puede
+    // bloquear ni hacer desaparecer el resto de partidos de la jornada.
+    const baseMatches = parsed.matches.map(match => {
+      const previous = previousMatches.get(pairKey(match.a, match.b));
+      const needsDetail = Boolean(match.tableId && match.status !== "pending");
+      return {
         ...match,
-        syncError: true
+        aScore: previous?.aScore ?? match.aScore,
+        bScore: previous?.bScore ?? match.bScore,
+        phase: previous?.phase ?? match.phase,
+        detailLoading: needsDetail,
+        syncError: false
       };
     });
 
     const map = new Map();
     const roundMap = new Map();
-
-    enriched.forEach((item, index) => {
-      // mapLimit puede envolver una excepción inesperada en {error}. Incluso
-      // en ese caso conservamos el partido base devuelto por getOverview.
-      const match = item?.error ? parsed.matches[index] : item;
-      if (!match?.a || !match?.b) return;
+    baseMatches.forEach(match => {
       map.set(pairKey(match.a, match.b), match);
       if (!roundMap.has(match.step)) roundMap.set(match.step, []);
       roundMap.get(match.step).push(match);
     });
-
     for (const games of roundMap.values()) {
       games.sort((a,b) => (a.position || 0) - (b.position || 0));
     }
@@ -774,6 +769,46 @@ async function loadDivisionLiveData(div, force=false) {
     state.loaded = true;
     state.updatedAt = new Date();
     renderParticipants();
+
+    if (activeDivision === div) {
+      renderStandings();
+      renderCalendar();
+    }
+
+    function replaceMatch(updated) {
+      const key = pairKey(updated.a, updated.b);
+      state.matches.set(key, updated);
+      const games = state.rounds.get(updated.step) || [];
+      const idx = games.findIndex(m => pairKey(m.a, m.b) === key);
+      if (idx >= 0) games[idx] = updated;
+      else games.push(updated);
+      games.sort((a,b) => (a.position || 0) - (b.position || 0));
+      state.rounds.set(updated.step, games);
+
+      if (activeDivision === div) {
+        renderStandings();
+        renderCalendar();
+      }
+    }
+
+    // Dos mesas en paralelo es un término medio: evita la ráfaga de cuatro
+    // peticiones que daba errores en V17, pero tampoco obliga a esperar a que
+    // terminen las cuatro una detrás de otra como ocurría en V19.
+    const toEnrich = baseMatches.filter(m => m.tableId && m.status !== "pending");
+    await mapLimit(toEnrich, 2, async match => {
+      let updated;
+      try {
+        updated = await enrichMatch(div, match, force);
+        updated = {...updated, detailLoading:false, syncError:false};
+      } catch (error) {
+        console.warn("No se pudo actualizar el marcador de una mesa BGA", {
+          div, tableId: match.tableId, error
+        });
+        updated = {...match, detailLoading:false, syncError:true};
+      }
+      replaceMatch(updated);
+      return updated;
+    });
   } catch (error) {
     console.error("BGA sync error", error);
     state.error = error?.message || String(error);
