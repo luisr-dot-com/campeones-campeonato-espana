@@ -533,9 +533,10 @@ function parseOverview(raw, div) {
           ? Object.entries(playersSource)
           : [];
 
-      let names = playerEntries.map(([entryKey, p]) => {
+      const resolvedPlayerRows = playerEntries.map(([entryKey, p]) => {
         if (typeof p === "string" || typeof p === "number") {
-          return playerNameById.get(String(p)) || (typeof p === "string" ? p : null);
+          const resolvedName = playerNameById.get(String(p)) || (typeof p === "string" ? p : null);
+          return resolvedName ? { name: resolvedName, result: null, points: null, tie: null } : null;
         }
         if (!p || typeof p !== "object") return null;
 
@@ -545,8 +546,18 @@ function parseOverview(raw, div) {
           ?? (/^\d+$/.test(entryKey) ? entryKey : null);
         const directName = firstDefined(p, ["player_name","playerName","name","fullname","player_fullname"])
           ?? firstDefined(nested, ["player_name","playerName","name","fullname","player_fullname"]);
-        return directName || (id !== null ? playerNameById.get(String(id)) : null);
+        const resolvedName = directName || (id !== null ? playerNameById.get(String(id)) : null);
+        if (!resolvedName) return null;
+
+        return {
+          name: resolvedName,
+          result: finiteNumber(firstDefined(p, ["result"])),
+          points: finiteNumber(firstDefined(p, ["points"])),
+          tie: finiteNumber(firstDefined(p, ["tie"]))
+        };
       }).filter(Boolean);
+
+      let names = resolvedPlayerRows.map(row => row.name);
 
       // Fallback para variantes de BGA que exponen los dos jugadores como
       // campos separados en lugar de dentro de match.players.
@@ -587,6 +598,14 @@ function parseOverview(raw, div) {
       const hasStarted = tableId && progression !== null && progression > 0;
       const status = cancelled ? "pending" : (finished ? "finished" : (hasStarted ? "live" : "pending"));
 
+      const metaByPlayer = new Map();
+      for (const row of resolvedPlayerRows) {
+        const canonical = canonicalLeaguePlayer(div, row.name);
+        if (canonical) metaByPlayer.set(normalizeName(canonical), row);
+      }
+      const aMeta = metaByPlayer.get(normalizeName(a)) || {};
+      const bMeta = metaByPlayer.get(normalizeName(b)) || {};
+
       const parsedMatch = {
         a, b,
         tableId: tableId ? String(tableId) : null,
@@ -594,6 +613,13 @@ function parseOverview(raw, div) {
         phase: null,
         aScore: null,
         bScore: null,
+        // Resultado oficial del torneo BGA. En partidas terminadas lo usamos
+        // para asociar el marcador Nankatsu/Toho al jugador correcto, porque
+        // las cartas de ambos equipos pueden hacer ambigua la inferencia por logs.
+        aResult: aMeta.result ?? null,
+        bResult: bMeta.result ?? null,
+        aTournamentPoints: aMeta.points ?? null,
+        bTournamentPoints: bMeta.points ?? null,
         step: stepNo,
         position: Number(firstDefined(match, ["position"])) || 0,
         progression
@@ -653,7 +679,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 function matchCacheKey(tableId) {
-  return `campeones-bga-match-v23-${tableId}`;
+  return `campeones-bga-match-v24-${tableId}`;
 }
 
 function readCachedMatch(tableId, finished) {
@@ -698,6 +724,45 @@ async function enrichMatch(div, match, force=false) {
 
   let aScore = scoreByLeaguePlayer.get(normalizeName(match.a));
   let bScore = scoreByLeaguePlayer.get(normalizeName(match.b));
+
+  // En partidas FINALIZADAS, el objeto detail.score contiene el marcador real
+  // por equipo de juego (Nankatsu/Toho), pero la inferencia jugador->equipo a
+  // partir de cartas puede equivocarse porque ambos jugadores pueden usar cartas
+  // del rival. El overview del torneo sí nos dice quién ganó (result 1/2 o,
+  // como respaldo, puntos del torneo). Por tanto asignamos el tanteo mayor al
+  // ganador oficial y el menor al perdedor. Si fue empate, ambos reciben el
+  // mismo marcador y no hay ambigüedad.
+  if (match.status === "finished") {
+    const nankatsu = finiteNumber(detail?.score?.Nankatsu);
+    const toho = finiteNumber(detail?.score?.Toho);
+    if (nankatsu !== null && toho !== null) {
+      const high = Math.max(nankatsu, toho);
+      const low = Math.min(nankatsu, toho);
+
+      if (high === low) {
+        aScore = high;
+        bScore = low;
+      } else {
+        const ar = finiteNumber(match.aResult);
+        const br = finiteNumber(match.bResult);
+        const ap = finiteNumber(match.aTournamentPoints);
+        const bp = finiteNumber(match.bTournamentPoints);
+
+        let aWon = null;
+        if (ar !== null && br !== null && ar !== br) {
+          // BGA: result=1 ganador, result=2 perdedor.
+          aWon = ar < br;
+        } else if (ap !== null && bp !== null && ap !== bp) {
+          aWon = ap > bp;
+        }
+
+        if (aWon !== null) {
+          aScore = aWon ? high : low;
+          bScore = aWon ? low : high;
+        }
+      }
+    }
+  }
 
   // Si BGA confirma que la mesa está en juego (progresión > 0), el marcador
   // mínimo válido es 0-0 aunque todavía no haya eventos de gol o suficientes
