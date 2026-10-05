@@ -653,7 +653,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 function matchCacheKey(tableId) {
-  return `campeones-bga-match-v19-${tableId}`;
+  return `campeones-bga-match-v23-${tableId}`;
 }
 
 function readCachedMatch(tableId, finished) {
