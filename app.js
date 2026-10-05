@@ -308,9 +308,13 @@ function renderCalendar() {
 
   function renderGame(a, b) {
     const p = matchPresentation(activeDivision, a, b);
+    const match = dynamicMatch(activeDivision, a, b);
+    const scoreHtml = match?.tableId
+      ? `<a class="match-score-link" href="https://boardgamearena.com/tableview?table=${encodeURIComponent(match.tableId)}" target="_blank" rel="noopener noreferrer" title="Ver partida en BGA">${p.score}</a>`
+      : p.score;
     return `<div class="calendar-game match-card">
       <div class="match-team home">${teamOf(a)}</div>
-      <div class="match-score">${p.score}</div>
+      <div class="match-score">${scoreHtml}</div>
       <div class="match-team away">${teamOf(b)}</div>
       <div class="match-status ${p.cls}">${p.status}</div>
     </div>`;
@@ -679,7 +683,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 function matchCacheKey(tableId) {
-  return `campeones-bga-match-v24-${tableId}`;
+  return `campeones-bga-match-v25-${tableId}`;
 }
 
 function readCachedMatch(tableId, finished) {
@@ -724,6 +728,19 @@ async function enrichMatch(div, match, force=false) {
 
   let aScore = scoreByLeaguePlayer.get(normalizeName(match.a));
   let bScore = scoreByLeaguePlayer.get(normalizeName(match.b));
+
+  // En los partidos EN CURSO usamos la regla comprobada en BGA:
+  // el primer jugador del partido (match.a, conservando el orden del overview)
+  // corresponde a New Team/Nankatsu y el segundo a Toho. De esta forma el
+  // marcador en directo deja de depender de la heuristica de cartas jugadas.
+  if (match.status === "live") {
+    const nankatsu = finiteNumber(detail?.score?.Nankatsu);
+    const toho = finiteNumber(detail?.score?.Toho);
+    if (nankatsu !== null && toho !== null) {
+      aScore = nankatsu;
+      bScore = toho;
+    }
+  }
 
   // En partidas FINALIZADAS, el objeto detail.score contiene el marcador real
   // por equipo de juego (Nankatsu/Toho), pero la inferencia jugador->equipo a

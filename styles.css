@@ -1223,3 +1223,21 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
   .standings-team{padding-right:60px}
   .in-play-badge{left:68%;font-size:7px;padding:2px 5px}
 }
+
+
+/* V25: el marcador enlaza directamente con la mesa de Board Game Arena sin alterar el diseño. */
+.match-score-link{
+  color:inherit;
+  text-decoration:none;
+  display:inline-block;
+  cursor:pointer;
+}
+.match-score-link:hover{
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+.match-score-link:focus-visible{
+  outline:2px solid currentColor;
+  outline-offset:3px;
+  border-radius:4px;
+}
