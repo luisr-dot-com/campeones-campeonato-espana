@@ -683,7 +683,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 function matchCacheKey(tableId) {
-  return `campeones-bga-match-v25-${tableId}`;
+  return `campeones-bga-match-v26-${tableId}`;
 }
 
 function readCachedMatch(tableId, finished) {
@@ -715,7 +715,30 @@ async function enrichMatch(div, match, force=false) {
 
   if (!detail) {
     const archived = match.status === "finished" ? "&archived=1" : "";
-    detail = await fetchJson(`${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}${archived}`, 18000);
+    const primaryUrl = `${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}${archived}`;
+
+    try {
+      detail = await fetchJson(primaryUrl, 18000);
+    } catch (error) {
+      // Un fallo puntual de BGA no debe dejar para siempre una mesa finalizada
+      // sin marcador. Reintentamos una vez antes de propagar el error.
+      await wait(450);
+      detail = await fetchJson(`${primaryUrl}&retry=1`, 18000);
+    }
+
+    // En una mesa finalizada, si el archivo todavía no entrega el marcador,
+    // intentamos también el historial vivo como respaldo.
+    if (match.status === "finished") {
+      const n = finiteNumber(detail?.score?.Nankatsu);
+      const t = finiteNumber(detail?.score?.Toho);
+      if (n === null || t === null) {
+        try {
+          await wait(350);
+          detail = await fetchJson(`${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}&retry=live`, 18000);
+        } catch (_) {}
+      }
+    }
+
     cacheMatch(match.tableId, detail);
   }
 
@@ -729,18 +752,10 @@ async function enrichMatch(div, match, force=false) {
   let aScore = scoreByLeaguePlayer.get(normalizeName(match.a));
   let bScore = scoreByLeaguePlayer.get(normalizeName(match.b));
 
-  // En los partidos EN CURSO usamos la regla comprobada en BGA:
-  // el primer jugador del partido (match.a, conservando el orden del overview)
-  // corresponde a New Team/Nankatsu y el segundo a Toho. De esta forma el
-  // marcador en directo deja de depender de la heuristica de cartas jugadas.
-  if (match.status === "live") {
-    const nankatsu = finiteNumber(detail?.score?.Nankatsu);
-    const toho = finiteNumber(detail?.score?.Toho);
-    if (nankatsu !== null && toho !== null) {
-      aScore = nankatsu;
-      bScore = toho;
-    }
-  }
+  // En partidos EN CURSO no inferimos el equipo por orden, table_order,
+  // active_player ni cartas jugadas. El Worker devuelve cada jugador con el
+  // team explícito de BGA (gameui.gamedatas.players), y por tanto su score ya
+  // llega asociado al nombre correcto en detail.players.
 
   // En partidas FINALIZADAS, el objeto detail.score contiene el marcador real
   // por equipo de juego (Nankatsu/Toho), pero la inferencia jugador->equipo a
@@ -781,13 +796,8 @@ async function enrichMatch(div, match, force=false) {
     }
   }
 
-  // Si BGA confirma que la mesa está en juego (progresión > 0), el marcador
-  // mínimo válido es 0-0 aunque todavía no haya eventos de gol o suficientes
-  // eventos para asociar ambos jugadores a Nankatsu/Toho.
-  if (match.status === "live" && Number(match.progression) > 0) {
-    if (!Number.isFinite(aScore)) aScore = 0;
-    if (!Number.isFinite(bScore)) bScore = 0;
-  }
+  // Si por cualquier motivo BGA no expone la asignación jugador-equipo, no
+  // inventamos un 0-0: dejamos el marcador pendiente hasta poder asociarlo.
 
   return {
     ...match,
