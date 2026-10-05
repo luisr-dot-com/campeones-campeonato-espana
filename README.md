@@ -18,3 +18,6 @@ Cambios principales:
 - Jornadas futuras: “Pendiente de generación en BGA” hasta que BGA cree cada paso.
 
 El Worker V3 no necesita cambios.
+
+
+V18: corregido torneo 6ª a 608416 y parser de jugadores/emparejamientos BGA robusto para arrays u objetos indexados por player_id.
