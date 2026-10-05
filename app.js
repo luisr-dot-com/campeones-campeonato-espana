@@ -289,7 +289,7 @@ function matchPresentation(div, a, b) {
   if (match.status === "live") {
     if (!hasScore) {
       if (match.detailLoading) {
-        return {score, status:"Actualizando marcador…", cls:"status-pending"};
+        return {score, status:"Actualizando…", cls:"status-pending"};
       }
       if (match.syncError) {
         return {score, status:"Marcador no disponible", cls:"status-pending"};
