@@ -683,7 +683,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 function matchCacheKey(tableId) {
-  return `campeones-bga-match-v26-${tableId}`;
+  return `campeones-bga-match-v27-${tableId}`;
 }
 
 function readCachedMatch(tableId, finished) {
@@ -726,16 +726,24 @@ async function enrichMatch(div, match, force=false) {
       detail = await fetchJson(`${primaryUrl}&retry=1`, 18000);
     }
 
-    // En una mesa finalizada, si el archivo todavía no entrega el marcador,
-    // intentamos también el historial vivo como respaldo.
+    // Para una mesa finalizada, V10 devuelve preferentemente el marcador
+    // oficial directamente por jugador desde tableinfos.player[].score.
+    // Solo usamos el antiguo respaldo por equipos si esos marcadores directos
+    // no están disponibles.
     if (match.status === "finished") {
-      const n = finiteNumber(detail?.score?.Nankatsu);
-      const t = finiteNumber(detail?.score?.Toho);
-      if (n === null || t === null) {
-        try {
-          await wait(350);
-          detail = await fetchJson(`${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}&retry=live`, 18000);
-        } catch (_) {}
+      const directScores = normalizeCollection(detail?.players)
+        .filter(p => p?.name && finiteNumber(p?.score) !== null);
+      const hasDirectPlayerScores = directScores.length >= 2;
+
+      if (!hasDirectPlayerScores) {
+        const n = finiteNumber(detail?.score?.Nankatsu);
+        const t = finiteNumber(detail?.score?.Toho);
+        if (n === null || t === null) {
+          try {
+            await wait(350);
+            detail = await fetchJson(`${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}&retry=live`, 18000);
+          } catch (_) {}
+        }
       }
     }
 

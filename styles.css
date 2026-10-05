@@ -1226,7 +1226,7 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
 
 
 /* V25: el marcador enlaza directamente con la mesa de Board Game Arena sin alterar el diseño. */
-/* V26: el marcador enlazado debe verse claramente como clicable. */
+/* V27: el marcador enlazado debe verse claramente como clicable. */
 .match-score-link{
   color:#0b4f8f;
   text-decoration:underline;
