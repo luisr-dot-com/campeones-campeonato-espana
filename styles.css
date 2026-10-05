@@ -1250,3 +1250,21 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
   outline-offset:3px;
   border-radius:4px;
 }
+
+
+/* V28: marcador completo en una sola linea, tambien en pantallas estrechas.
+   Se conserva la web V27 y el Worker V14; solo cambia la presentacion. */
+.match-score,
+.match-score-link{
+  white-space:nowrap;
+}
+
+@media(max-width:700px){
+  .match-card{
+    grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr)!important;
+  }
+  .match-card .match-team{
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+}
