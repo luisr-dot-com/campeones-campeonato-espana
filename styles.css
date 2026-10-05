@@ -1155,29 +1155,37 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
   text-align:left!important;
 }
 
-/* Etiqueta discreta para equipos cuyo partido sigue en curso. */
+/* Etiqueta discreta para equipos cuyo partido sigue en curso.
+   Se mantiene dentro de la columna EQUIPO, separada del nombre y centrada
+   aproximadamente en la zona libre antes de PJ. */
+#standingsTable .player-name{
+  position:relative;
+}
 .standings-team{
-  display:flex;
-  align-items:center;
-  justify-content:flex-start;
-  gap:10px;
+  position:relative;
+  display:block;
   min-width:0;
+  padding-right:74px;
 }
 .in-play-badge{
+  position:absolute;
+  left:62%;
+  top:50%;
+  transform:translate(-50%,-50%);
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  flex:0 0 auto;
-  padding:3px 8px;
+  padding:2px 6px;
   border:1px solid #e7a83d;
   border-radius:999px;
   background:#fff4dc;
   color:#9a5a05;
-  font-size:9px;
-  line-height:1.1;
+  font-size:8px;
+  line-height:1.05;
   font-weight:900;
   text-transform:uppercase;
-  letter-spacing:.045em;
+  letter-spacing:.035em;
+  white-space:nowrap;
 }
 
 /* 4ª: desplazamos el personaje claramente a la izquierda para que la tabla no lo tape. */
@@ -1212,6 +1220,6 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
 @media(max-width:650px){
   .bga-sync{align-items:flex-start!important}
   .bga-updated{padding-left:2px;padding-right:0}
-  .standings-team{gap:6px}
-  .in-play-badge{font-size:8px;padding:3px 6px}
+  .standings-team{padding-right:60px}
+  .in-play-badge{left:68%;font-size:7px;padding:2px 5px}
 }
