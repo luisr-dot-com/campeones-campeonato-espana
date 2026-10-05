@@ -47,6 +47,7 @@ const teamNamesRaw = {
   "Serranito_Deluxd":"SERRANITAZO TEAM",
   "Mitxelino":"Esteagua de Solares",
   "Calajan":"Furano FC",
+  "Calajan777":"Furano FC",
   "Pysic":"Rápido de Bouzas FC",
   "Santi21gc":"Pío Pío Lpgc",
   "alcapa7":"Alcapas FC",
@@ -286,6 +287,9 @@ function matchPresentation(div, a, b) {
     return {score, status: hasScore ? "Finalizado" : "Finalizado · marcador pendiente", cls:"status-finished"};
   }
   if (match.status === "live") {
+    if (!hasScore) {
+      return {score, status:"Actualizando marcador…", cls:"status-pending"};
+    }
     return {score, status:`En juego${match.phase ? ` · ${match.phase}` : ""}`, cls:"status-live"};
   }
   return {score:"— <span>–</span> —", status:"Sin comenzar", cls:"status-pending"};
@@ -634,7 +638,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 function matchCacheKey(tableId) {
-  return `campeones-bga-match-v18-${tableId}`;
+  return `campeones-bga-match-v19-${tableId}`;
 }
 
 function readCachedMatch(tableId, finished) {
@@ -652,6 +656,10 @@ function cacheMatch(tableId, data) {
   try {
     sessionStorage.setItem(matchCacheKey(tableId), JSON.stringify({savedAt:Date.now(), data}));
   } catch {}
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function enrichMatch(div, match, force=false) {
@@ -710,18 +718,44 @@ async function loadDivisionLiveData(div, force=false) {
     const overview = await fetchJson(`${WORKER_URL}/?id=${encodeURIComponent(tournamentId)}${refreshElo}`);
     const parsed = parseOverview(overview, div);
 
-    const enriched = await mapLimit(parsed.matches, 4, async match => {
+    // Las mesas de Campeones hacen bastantes consultas a BGA para detectar
+    // el game server y reconstruir el marcador. Si lanzamos los cuatro
+    // partidos de una jornada a la vez, BGA puede rechazar algunas peticiones
+    // de forma intermitente. Los enriquecemos de uno en uno y reintentamos.
+    const previousMatches = state.matches;
+
+    const enriched = await mapLimit(parsed.matches, 1, async match => {
       if (!match.tableId || match.status === "pending") return match;
-      const result = await enrichMatch(div, match, force);
-      if (result?.error) return match;
-      return result;
+
+      let lastError = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          return await enrichMatch(div, match, force && attempt === 0);
+        } catch (error) {
+          lastError = error;
+          if (attempt < 2) await wait(350 * (attempt + 1));
+        }
+      }
+
+      console.warn("No se pudo enriquecer una mesa BGA tras varios intentos", {
+        div, tableId: match.tableId, error: lastError
+      });
+
+      // Nunca hacemos desaparecer un emparejamiento que sí existe en BGA.
+      // Si ya teníamos un dato anterior de esa mesa, lo conservamos.
+      return previousMatches.get(pairKey(match.a, match.b)) || {
+        ...match,
+        syncError: true
+      };
     });
 
     const map = new Map();
     const roundMap = new Map();
 
-    enriched.forEach(item => {
-      const match = item?.error ? null : item;
+    enriched.forEach((item, index) => {
+      // mapLimit puede envolver una excepción inesperada en {error}. Incluso
+      // en ese caso conservamos el partido base devuelto por getOverview.
+      const match = item?.error ? parsed.matches[index] : item;
       if (!match?.a || !match?.b) return;
       map.set(pairKey(match.a, match.b), match);
       if (!roundMap.has(match.step)) roundMap.set(match.step, []);
@@ -753,6 +787,33 @@ async function loadDivisionLiveData(div, force=false) {
   }
 }
 
+async function loadDivisionParticipantsData(div, force=false) {
+  const tournamentId = tournamentByDivision[div];
+  const state = liveState[div];
+  if (!tournamentId || !state) return;
+
+  try {
+    const refreshElo = force ? "&refreshElo=1" : "";
+    const overview = await fetchJson(`${WORKER_URL}/?id=${encodeURIComponent(tournamentId)}${refreshElo}`);
+    const parsed = parseOverview(overview, div);
+    state.eloByPlayer = parsed.eloByPlayer;
+    state.bgaDisplayRankByPlayer = parsed.bgaDisplayRankByPlayer;
+    renderParticipants();
+  } catch (error) {
+    console.warn("No se pudieron cargar los participantes/ELO de una división", {div, error});
+  }
+}
+
+async function loadAllParticipantsData(force=false) {
+  // Solo necesitamos overview + ELO. No reconstruimos aquí todos los
+  // marcadores de las seis divisiones, porque eso saturaba BGA y provocaba
+  // que desapareciesen partidos de forma aparentemente aleatoria.
+  for (const div of Object.keys(tournamentByDivision).map(Number)) {
+    await loadDivisionParticipantsData(div, force);
+    await wait(150);
+  }
+}
+
 function maybeLoadLiveDivision(div) {
   if (tournamentByDivision[div]) loadDivisionLiveData(div, false);
 }
@@ -767,7 +828,7 @@ document.querySelector("#championshipLink").onclick = e => { e.preventDefault();
 document.querySelector("#participantsLink").onclick = e => {
   e.preventDefault();
   showPage("participants");
-  Object.keys(tournamentByDivision).forEach(div => maybeLoadLiveDivision(Number(div)));
+  loadAllParticipantsData(false);
 };
 document.querySelector("#rulesLink").onclick = e => { e.preventDefault(); showPage("rules"); };
 document.querySelector("#brandHome")?.addEventListener("click", e => { e.preventDefault(); showPage("championship"); });
