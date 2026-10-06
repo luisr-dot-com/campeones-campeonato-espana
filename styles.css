@@ -1196,12 +1196,12 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
 
 /* 5ª: nuevo guardameta de cuerpo entero, encuadre amplio y casi completo. */
 #championshipPage.division-theme-5{
-  --character-image:url("assets/ed-warner-full.png")!important;
+  --character-image:url("assets/ed-warner-full.webp")!important;
   background-size:cover,610px auto!important;
   background-position:center,-22px 126px!important;
 }
 .division-theme-5{
-  --character-image:url("assets/ed-warner-full.png")!important;
+  --character-image:url("assets/ed-warner-full.webp")!important;
 }
 
 @media(max-width:900px){
@@ -1267,4 +1267,31 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
     min-width:0;
     overflow-wrap:anywhere;
   }
+}
+
+/* ===== V29 · optimización de sincronización y ELO ===== */
+.elo-sync{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  margin:0 0 18px;
+  min-height:34px;
+}
+.elo-sync button{
+  appearance:none;
+  border:1px solid #b9d0e3;
+  border-radius:999px;
+  background:#fff;
+  color:#0b4f8f;
+  font:700 13px/1 Inter,sans-serif;
+  padding:9px 14px;
+  cursor:pointer;
+  box-shadow:0 4px 14px rgba(9,53,98,.06);
+}
+.elo-sync button:hover{background:#edf5fb}
+.elo-sync button:disabled{opacity:.65;cursor:wait}
+.sync-warning{color:#a05c00!important}
+@media(max-width:650px){
+  .elo-sync{justify-content:flex-start;align-items:flex-start;flex-direction:column;gap:6px}
 }

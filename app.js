@@ -412,6 +412,22 @@ function ensureSyncBox() {
   return box;
 }
 
+function friendlySyncError(errorText) {
+  const text = String(errorText || "");
+  if (/sesion|sesi[oó]n|session|cookie|token|login|autent|identif/i.test(text)) return "sesión BGA caducada";
+  if (/tiempo de espera|timeout/i.test(text)) return "BGA no respondió a tiempo";
+  return "no se pudo actualizar";
+}
+
+function formatSavedTime(value) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("es-ES", {
+    day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"
+  });
+}
+
 function renderSyncStatus() {
   const box = ensureSyncBox();
   const tournamentId = tournamentByDivision[activeDivision];
@@ -422,18 +438,16 @@ function renderSyncStatus() {
 
   box.hidden = false;
   const state = liveState[activeDivision];
-  const time = state?.updatedAt
-    ? state.updatedAt.toLocaleTimeString("es-ES", {hour:"2-digit", minute:"2-digit"})
-    : "";
-
+  const time = formatSavedTime(state?.updatedAt);
   const label = state?.loading ? "Actualizando…" : "Actualizar datos";
-  const note = state?.error
-    ? "No se pudo actualizar"
-    : (time ? `actualizado ${time}` : "");
+  let note = time ? `datos guardados · ${time}` : "sin datos guardados";
+  if (state?.error) {
+    note = `${time ? `últimos datos · ${time} · ` : ""}${friendlySyncError(state.error)}`;
+  }
 
   box.innerHTML = `
     <button type="button" id="retryBga" ${state?.loading ? "disabled" : ""}>${label}</button>
-    ${note ? `<small class="bga-updated">${note}</small>` : ""}
+    <small class="bga-updated ${state?.error ? "sync-warning" : ""}">${note}</small>
   `;
 
   document.querySelector("#retryBga")?.addEventListener("click", () => {
@@ -656,11 +670,17 @@ async function fetchJson(url, timeoutMs=20000) {
     try { json = JSON.parse(text); }
     catch { throw new Error(`Respuesta no JSON (${response.status})`); }
     if (!response.ok || String(json?.status) === "0") {
-      throw new Error(json?.error || `HTTP ${response.status}`);
+      const error = new Error(json?.error || `HTTP ${response.status}`);
+      error.code = json?.code || (response.status === 401 || response.status === 403 ? "BGA_SESSION" : "HTTP_ERROR");
+      throw error;
     }
     return json;
   } catch (error) {
-    if (error?.name === "AbortError") throw new Error("Tiempo de espera agotado");
+    if (error?.name === "AbortError") {
+      const timeout = new Error("Tiempo de espera agotado");
+      timeout.code = "TIMEOUT";
+      throw timeout;
+    }
     throw error;
   } finally {
     clearTimeout(timer);
@@ -682,73 +702,83 @@ async function mapLimit(items, limit, worker) {
   return results;
 }
 
-function matchCacheKey(tableId) {
-  return `campeones-bga-match-v27-${tableId}`;
-}
+// =====================================================
+// V29 · ESTADO PERSISTENTE EN EL NAVEGADOR
+// =====================================================
+const LOCAL_SNAPSHOT_KEY = "campeones-state-v29";
+let clientSnapshot = {
+  schemaVersion: 1,
+  savedAt: null,
+  divisions: {},
+  elo: {}
+};
+let participantsLoading = false;
+let participantsError = null;
+let eloUpdatedAt = null;
 
-function readCachedMatch(tableId, finished) {
-  try {
-    const raw = sessionStorage.getItem(matchCacheKey(tableId));
-    if (!raw) return null;
-    const item = JSON.parse(raw);
-    const maxAge = finished ? 24*60*60*1000 : 2*60*1000;
-    if (Date.now() - item.savedAt > maxAge) return null;
-    return item.data;
-  } catch { return null; }
-}
-
-function cacheMatch(tableId, data) {
-  try {
-    sessionStorage.setItem(matchCacheKey(tableId), JSON.stringify({savedAt:Date.now(), data}));
-  } catch {}
-}
-
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function enrichMatch(div, match, force=false) {
-  if (!match.tableId) return match;
-
-  const cached = force ? null : readCachedMatch(match.tableId, match.status === "finished");
-  let detail = cached;
-
-  if (!detail) {
-    const archived = match.status === "finished" ? "&archived=1" : "";
-    const primaryUrl = `${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}${archived}`;
-
-    try {
-      detail = await fetchJson(primaryUrl, 18000);
-    } catch (error) {
-      // Un fallo puntual de BGA no debe dejar para siempre una mesa finalizada
-      // sin marcador. Reintentamos una vez antes de propagar el error.
-      await wait(450);
-      detail = await fetchJson(`${primaryUrl}&retry=1`, 18000);
-    }
-
-    // Para una mesa finalizada, V10 devuelve preferentemente el marcador
-    // oficial directamente por jugador desde tableinfos.player[].score.
-    // Solo usamos el antiguo respaldo por equipos si esos marcadores directos
-    // no están disponibles.
-    if (match.status === "finished") {
-      const directScores = normalizeCollection(detail?.players)
-        .filter(p => p?.name && finiteNumber(p?.score) !== null);
-      const hasDirectPlayerScores = directScores.length >= 2;
-
-      if (!hasDirectPlayerScores) {
-        const n = finiteNumber(detail?.score?.Nankatsu);
-        const t = finiteNumber(detail?.score?.Toho);
-        if (n === null || t === null) {
-          try {
-            await wait(350);
-            detail = await fetchJson(`${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}&retry=live`, 18000);
-          } catch (_) {}
-        }
-      }
-    }
-
-    cacheMatch(match.tableId, detail);
+function snapshotDivision(div) {
+  const key = String(div);
+  if (!clientSnapshot.divisions[key]) {
+    clientSnapshot.divisions[key] = {overview:null, updatedAt:null, matches:{}};
   }
+  if (!clientSnapshot.divisions[key].matches) clientSnapshot.divisions[key].matches = {};
+  return clientSnapshot.divisions[key];
+}
+
+function snapshotEloDivision(div) {
+  const key = String(div);
+  if (!clientSnapshot.elo[key]) clientSnapshot.elo[key] = {data:null, updatedAt:null};
+  return clientSnapshot.elo[key];
+}
+
+function normalizeSnapshotMatchEntry(entry) {
+  if (!entry) return null;
+  return entry.data ?? entry;
+}
+
+function persistLocalSnapshot() {
+  try {
+    clientSnapshot.savedAt = new Date().toISOString();
+    localStorage.setItem(LOCAL_SNAPSHOT_KEY, JSON.stringify(clientSnapshot));
+  } catch (error) {
+    console.warn("No se pudo guardar el estado local", error);
+  }
+}
+
+function readLocalSnapshot() {
+  try {
+    const raw = localStorage.getItem(LOCAL_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || Number(parsed.schemaVersion) !== 1) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function snapshotHasUsefulData(snapshot) {
+  if (!snapshot) return false;
+  return Object.values(snapshot.divisions || {}).some(d => d?.overview) ||
+    Object.values(snapshot.elo || {}).some(d => d?.data);
+}
+
+function buildMatchCollections(matches) {
+  const map = new Map();
+  const rounds = new Map();
+  for (const match of matches) {
+    map.set(pairKey(match.a, match.b), match);
+    if (!rounds.has(match.step)) rounds.set(match.step, []);
+    rounds.get(match.step).push(match);
+  }
+  for (const games of rounds.values()) {
+    games.sort((a,b) => (a.position || 0) - (b.position || 0));
+  }
+  return {map, rounds};
+}
+
+function applyDetailToMatch(div, match, detail) {
+  if (!detail) return {...match};
 
   const scoreByLeaguePlayer = new Map();
   normalizeCollection(detail?.players).forEach(p => {
@@ -760,25 +790,14 @@ async function enrichMatch(div, match, force=false) {
   let aScore = scoreByLeaguePlayer.get(normalizeName(match.a));
   let bScore = scoreByLeaguePlayer.get(normalizeName(match.b));
 
-  // En partidos EN CURSO no inferimos el equipo por orden, table_order,
-  // active_player ni cartas jugadas. El Worker devuelve cada jugador con el
-  // team explícito de BGA (gameui.gamedatas.players), y por tanto su score ya
-  // llega asociado al nombre correcto en detail.players.
-
-  // En partidas FINALIZADAS, el objeto detail.score contiene el marcador real
-  // por equipo de juego (Nankatsu/Toho), pero la inferencia jugador->equipo a
-  // partir de cartas puede equivocarse porque ambos jugadores pueden usar cartas
-  // del rival. El overview del torneo sí nos dice quién ganó (result 1/2 o,
-  // como respaldo, puntos del torneo). Por tanto asignamos el tanteo mayor al
-  // ganador oficial y el menor al perdedor. Si fue empate, ambos reciben el
-  // mismo marcador y no hay ambigüedad.
-  if (match.status === "finished") {
+  // Respaldo para archivos antiguos guardados antes de que BGA devolviera
+  // el marcador final directamente por jugador.
+  if (match.status === "finished" && (aScore === undefined || bScore === undefined)) {
     const nankatsu = finiteNumber(detail?.score?.Nankatsu);
     const toho = finiteNumber(detail?.score?.Toho);
     if (nankatsu !== null && toho !== null) {
       const high = Math.max(nankatsu, toho);
       const low = Math.min(nankatsu, toho);
-
       if (high === low) {
         aScore = high;
         bScore = low;
@@ -787,15 +806,9 @@ async function enrichMatch(div, match, force=false) {
         const br = finiteNumber(match.bResult);
         const ap = finiteNumber(match.aTournamentPoints);
         const bp = finiteNumber(match.bTournamentPoints);
-
         let aWon = null;
-        if (ar !== null && br !== null && ar !== br) {
-          // BGA: result=1 ganador, result=2 perdedor.
-          aWon = ar < br;
-        } else if (ap !== null && bp !== null && ap !== bp) {
-          aWon = ap > bp;
-        }
-
+        if (ar !== null && br !== null && ar !== br) aWon = ar < br;
+        else if (ap !== null && bp !== null && ap !== bp) aWon = ap > bp;
         if (aWon !== null) {
           aScore = aWon ? high : low;
           bScore = aWon ? low : high;
@@ -804,75 +817,204 @@ async function enrichMatch(div, match, force=false) {
     }
   }
 
-  // Si por cualquier motivo BGA no expone la asignación jugador-equipo, no
-  // inventamos un 0-0: dejamos el marcador pendiente hasta poder asociarlo.
-
   return {
     ...match,
-    phase: detail?.phase || null,
-    aScore: aScore ?? null,
-    bScore: bScore ?? null
+    phase: detail?.phase || match.phase || null,
+    aScore: aScore ?? match.aScore ?? null,
+    bScore: bScore ?? match.bScore ?? null
   };
+}
+
+function matchHasCompleteScore(match) {
+  return Number.isFinite(match?.aScore) && Number.isFinite(match?.bScore);
+}
+
+function hydrateEloPayload(div, payload, updatedAt=null) {
+  if (!payload) return;
+  const state = liveState[div];
+  const players = normalizeCollection(payload?.data?.players ?? payload?.players);
+  for (const player of players) {
+    const name = canonicalLeaguePlayer(div, player?.name);
+    const elo = finiteNumber(player?.elo);
+    if (name && elo !== null) state.eloByPlayer.set(normalizeName(name), elo);
+  }
+  if (updatedAt) eloUpdatedAt = new Date(updatedAt);
+}
+
+function hydrateDivisionFromSnapshot(div, entry) {
+  if (!entry?.overview) return;
+  const state = liveState[div];
+  const parsed = parseOverview(entry.overview, div);
+  const storedMatches = entry.matches || {};
+  const matches = parsed.matches.map(match => {
+    const detail = normalizeSnapshotMatchEntry(storedMatches[String(match.tableId)]);
+    const hydrated = detail ? applyDetailToMatch(div, match, detail) : match;
+    return {...hydrated, detailLoading:false, syncError:false};
+  });
+  const collections = buildMatchCollections(matches);
+  state.matches = collections.map;
+  state.rounds = collections.rounds;
+  state.bgaDisplayRankByPlayer = parsed.bgaDisplayRankByPlayer;
+  state.tournamentStarted = parsed.started;
+  state.loaded = true;
+  state.error = null;
+  state.updatedAt = entry.updatedAt ? new Date(entry.updatedAt) : null;
+}
+
+function hydrateSnapshot(snapshot) {
+  if (!snapshot) return;
+  clientSnapshot = {
+    schemaVersion: 1,
+    savedAt: snapshot.savedAt || snapshot.generatedAt || null,
+    divisions: snapshot.divisions || {},
+    elo: snapshot.elo || {}
+  };
+
+  for (const div of Object.keys(tournamentByDivision).map(Number)) {
+    hydrateDivisionFromSnapshot(div, clientSnapshot.divisions[String(div)]);
+    const eloEntry = clientSnapshot.elo[String(div)];
+    if (eloEntry?.data) hydrateEloPayload(div, eloEntry.data, eloEntry.updatedAt);
+  }
+}
+
+function saveOverviewToSnapshot(div, overview, updatedAt) {
+  const entry = snapshotDivision(div);
+  entry.overview = overview;
+  entry.updatedAt = updatedAt;
+}
+
+function saveMatchDetailToSnapshot(div, match, detail, finalFlag) {
+  if (!match?.tableId || !detail) return;
+  const entry = snapshotDivision(div);
+  const key = String(match.tableId);
+  const existing = entry.matches[key];
+  // Un resultado definitivo validado no se degrada después a un estado vivo.
+  if (existing?.final && !finalFlag) return;
+  entry.matches[key] = {
+    savedAt: new Date().toISOString(),
+    final: Boolean(finalFlag),
+    data: detail
+  };
+}
+
+function saveEloToSnapshot(div, payload, updatedAt) {
+  const entry = snapshotEloDivision(div);
+  entry.data = payload;
+  entry.updatedAt = updatedAt;
+}
+
+async function bootstrapSavedData() {
+  const local = readLocalSnapshot();
+  if (snapshotHasUsefulData(local)) {
+    hydrateSnapshot(local);
+    renderChampionship();
+    renderParticipants();
+    renderEloSyncStatus();
+    return;
+  }
+
+  // Excepción aprobada: un navegador nuevo recibe la última copia compartida
+  // de Cloudflare. Esta llamada NO consulta BGA.
+  try {
+    const cloud = await fetchJson(`${WORKER_URL}/?snapshot=1`, 12000);
+    if (snapshotHasUsefulData(cloud)) {
+      hydrateSnapshot(cloud);
+      persistLocalSnapshot();
+    }
+  } catch (error) {
+    console.warn("No se pudo recuperar el último estado compartido", error);
+  }
+
+  renderChampionship();
+  renderParticipants();
+  renderEloSyncStatus();
+}
+
+function renderEloSyncStatus() {
+  const box = document.querySelector("#eloSyncStatus");
+  if (!box) return;
+  const time = formatSavedTime(eloUpdatedAt);
+  let note = time ? `ELO guardado · ${time}` : "sin ELO guardado";
+  if (participantsError) note = `${time ? `último ELO · ${time} · ` : ""}${friendlySyncError(participantsError)}`;
+  box.innerHTML = `
+    <button type="button" id="refreshEloButton" ${participantsLoading ? "disabled" : ""}>${participantsLoading ? "Actualizando ELO…" : "Actualizar ELO"}</button>
+    <small class="bga-updated ${participantsError ? "sync-warning" : ""}">${note}</small>
+  `;
+  document.querySelector("#refreshEloButton")?.addEventListener("click", () => loadAllParticipantsData(true));
+}
+
+async function fetchMatchDetail(div, match) {
+  const archived = match.status === "finished" ? "&archived=1" : "";
+  const primaryUrl = `${WORKER_URL}/?match=${encodeURIComponent(match.tableId)}${archived}&refresh=1`;
+  let detail;
+  try {
+    detail = await fetchJson(primaryUrl, 20000);
+  } catch (error) {
+    // Reintento único. El Worker ya evita consultas duplicadas simultáneas.
+    await wait(400);
+    detail = await fetchJson(`${primaryUrl}&retry=1`, 20000);
+  }
+  saveMatchDetailToSnapshot(div, match, detail, match.status === "finished");
+  persistLocalSnapshot();
+  return detail;
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function loadDivisionLiveData(div, force=false) {
   const tournamentId = tournamentByDivision[div];
   const state = liveState[div];
   if (!tournamentId || !state || state.loading) return;
-  if (state.loaded && !force) return;
+  // Nunca actualizamos BGA automáticamente. Sin force solo mostramos lo guardado.
+  if (!force) return;
 
   state.loading = true;
   state.error = null;
-  if (activeDivision === div) {
-    renderSyncStatus();
-    renderCalendar();
-  }
+  if (activeDivision === div) renderSyncStatus();
 
   try {
-    const refreshElo = force ? "&refreshElo=1" : "";
-    const overview = await fetchJson(`${WORKER_URL}/?id=${encodeURIComponent(tournamentId)}${refreshElo}`, 20000);
+    // Campeonato y ELO quedan separados: esta consulta no pide perfiles ELO.
+    const overview = await fetchJson(
+      `${WORKER_URL}/?id=${encodeURIComponent(tournamentId)}&includeElo=0&refresh=1`,
+      20000
+    );
     const parsed = parseOverview(overview, div);
     const previousMatches = state.matches;
+    const stored = snapshotDivision(div);
 
-    // V20: el overview es la fuente de verdad de los emparejamientos y se
-    // pinta inmediatamente. La consulta del marcador de una mesa no puede
-    // bloquear ni hacer desaparecer el resto de partidos de la jornada.
     const baseMatches = parsed.matches.map(match => {
       const previous = previousMatches.get(pairKey(match.a, match.b));
-      const needsDetail = Boolean(match.tableId && match.status !== "pending");
-      return {
+      const storedDetail = normalizeSnapshotMatchEntry(stored.matches?.[String(match.tableId)]);
+      let current = {
         ...match,
         aScore: previous?.aScore ?? match.aScore,
         bScore: previous?.bScore ?? match.bScore,
         phase: previous?.phase ?? match.phase,
-        detailLoading: needsDetail,
-        syncError: false
+        detailLoading:false,
+        syncError:false
       };
+      if (storedDetail) current = applyDetailToMatch(div, current, storedDetail);
+      return current;
     });
 
-    const map = new Map();
-    const roundMap = new Map();
-    baseMatches.forEach(match => {
-      map.set(pairKey(match.a, match.b), match);
-      if (!roundMap.has(match.step)) roundMap.set(match.step, []);
-      roundMap.get(match.step).push(match);
-    });
-    for (const games of roundMap.values()) {
-      games.sort((a,b) => (a.position || 0) - (b.position || 0));
-    }
-
-    state.matches = map;
-    state.rounds = roundMap;
-    state.eloByPlayer = parsed.eloByPlayer;
+    const collections = buildMatchCollections(baseMatches);
+    state.matches = collections.map;
+    state.rounds = collections.rounds;
     state.bgaDisplayRankByPlayer = parsed.bgaDisplayRankByPlayer;
     state.tournamentStarted = parsed.started;
     state.loaded = true;
-    state.updatedAt = new Date();
-    renderParticipants();
+
+    const overviewTime = new Date().toISOString();
+    state.updatedAt = new Date(overviewTime);
+    saveOverviewToSnapshot(div, overview, overviewTime);
+    persistLocalSnapshot();
 
     if (activeDivision === div) {
       renderStandings();
       renderCalendar();
+      renderSyncStatus();
     }
 
     function replaceMatch(updated) {
@@ -884,34 +1026,44 @@ async function loadDivisionLiveData(div, force=false) {
       else games.push(updated);
       games.sort((a,b) => (a.position || 0) - (b.position || 0));
       state.rounds.set(updated.step, games);
-
       if (activeDivision === div) {
         renderStandings();
         renderCalendar();
       }
     }
 
-    // Dos mesas en paralelo es un término medio: evita la ráfaga de cuatro
-    // peticiones que daba errores en V17, pero tampoco obliga a esperar a que
-    // terminen las cuatro una detrás de otra como ocurría en V19.
-    const toEnrich = baseMatches.filter(m => m.tableId && m.status !== "pending");
+    const toEnrich = baseMatches.filter(match => {
+      if (!match.tableId || match.status === "pending") return false;
+      const entry = stored.matches?.[String(match.tableId)];
+      // Partido finalizado + resultado validado: queda fijo para siempre.
+      if (match.status === "finished" && entry?.final && matchHasCompleteScore(match)) return false;
+      return true;
+    });
+
+    // Dos mesas simultáneas como máximo. El Worker añade además una caché corta
+    // compartida para amortiguar visitas concurrentes de distintos usuarios.
     await mapLimit(toEnrich, 2, async match => {
-      let updated;
+      let updated = {...match, detailLoading:true};
+      replaceMatch(updated);
       try {
-        updated = await enrichMatch(div, match, force);
+        const detail = await fetchMatchDetail(div, match);
+        updated = applyDetailToMatch(div, match, detail);
         updated = {...updated, detailLoading:false, syncError:false};
       } catch (error) {
-        console.warn("No se pudo actualizar el marcador de una mesa BGA", {
-          div, tableId: match.tableId, error
-        });
+        console.warn("No se pudo actualizar el marcador", {div, tableId:match.tableId, error});
         updated = {...match, detailLoading:false, syncError:true};
       }
       replaceMatch(updated);
       return updated;
     });
+
+    state.updatedAt = new Date();
+    snapshotDivision(div).updatedAt = state.updatedAt.toISOString();
+    persistLocalSnapshot();
   } catch (error) {
     console.error("BGA sync error", error);
     state.error = error?.message || String(error);
+    // No borramos nada: la última información válida permanece visible.
   } finally {
     state.loading = false;
     if (activeDivision === div) {
@@ -922,35 +1074,39 @@ async function loadDivisionLiveData(div, force=false) {
   }
 }
 
-async function loadDivisionParticipantsData(div, force=false) {
+async function loadDivisionParticipantsData(div) {
   const tournamentId = tournamentByDivision[div];
-  const state = liveState[div];
-  if (!tournamentId || !state) return;
-
-  try {
-    const refreshElo = force ? "&refreshElo=1" : "";
-    const overview = await fetchJson(`${WORKER_URL}/?id=${encodeURIComponent(tournamentId)}${refreshElo}`);
-    const parsed = parseOverview(overview, div);
-    state.eloByPlayer = parsed.eloByPlayer;
-    state.bgaDisplayRankByPlayer = parsed.bgaDisplayRankByPlayer;
-    renderParticipants();
-  } catch (error) {
-    console.warn("No se pudieron cargar los participantes/ELO de una división", {div, error});
-  }
+  if (!tournamentId) return;
+  const payload = await fetchJson(
+    `${WORKER_URL}/?id=${encodeURIComponent(tournamentId)}&eloOnly=1&refreshElo=1`,
+    25000
+  );
+  const updatedAt = new Date().toISOString();
+  hydrateEloPayload(div, payload, updatedAt);
+  saveEloToSnapshot(div, payload, updatedAt);
+  persistLocalSnapshot();
+  renderParticipants();
 }
 
 async function loadAllParticipantsData(force=false) {
-  // Solo necesitamos overview + ELO. No reconstruimos aquí todos los
-  // marcadores de las seis divisiones, porque eso saturaba BGA y provocaba
-  // que desapareciesen partidos de forma aparentemente aleatoria.
-  for (const div of Object.keys(tournamentByDivision).map(Number)) {
-    await loadDivisionParticipantsData(div, force);
-    await wait(150);
+  if (!force || participantsLoading) return;
+  participantsLoading = true;
+  participantsError = null;
+  renderEloSyncStatus();
+  try {
+    for (const div of Object.keys(tournamentByDivision).map(Number)) {
+      await loadDivisionParticipantsData(div);
+      await wait(120);
+    }
+    eloUpdatedAt = new Date();
+  } catch (error) {
+    participantsError = error?.message || String(error);
+    console.warn("No se pudo actualizar el ELO", error);
+  } finally {
+    participantsLoading = false;
+    renderParticipants();
+    renderEloSyncStatus();
   }
-}
-
-function maybeLoadLiveDivision(div) {
-  if (tournamentByDivision[div]) loadDivisionLiveData(div, false);
 }
 
 function showPage(page) {
@@ -963,12 +1119,14 @@ document.querySelector("#championshipLink").onclick = e => { e.preventDefault();
 document.querySelector("#participantsLink").onclick = e => {
   e.preventDefault();
   showPage("participants");
-  loadAllParticipantsData(false);
+  renderParticipants();
+  renderEloSyncStatus();
 };
 document.querySelector("#rulesLink").onclick = e => { e.preventDefault(); showPage("rules"); };
 document.querySelector("#brandHome")?.addEventListener("click", e => { e.preventDefault(); showPage("championship"); });
 
 renderChampionship();
 renderParticipants();
+renderEloSyncStatus();
 showPage("championship");
-maybeLoadLiveDivision(activeDivision);
+bootstrapSavedData();
