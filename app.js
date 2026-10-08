@@ -60,6 +60,8 @@ const teamNamesRaw = {
   "Javiblancosinger":"Wakabayashi's",
   "Amilca":"FC Barcino",
   "Avionsis":"Paketon",
+  "Radikalgyn":"Var y a casa",
+  "Rob Avi":"Paketón",
   "merifa":"Los Vulanicos",
   "Jersan":"San Lorenzo",
   "alvarito_rip":"Fantasy Team",
