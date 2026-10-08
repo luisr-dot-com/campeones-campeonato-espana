@@ -24,7 +24,7 @@ const leagueData = {
   ]
 };
 
-// Nombres de equipo vigentes (actualización 01/10/2026).
+// Nombres de equipo vigentes (actualización 08/10/2026 · web v1.51).
 const teamNamesRaw = {
   "pmp":"REAL SOCIEDAD",
   "genzotto_":"TOXIRIA",
@@ -703,7 +703,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 // =====================================================
-// V29 · ESTADO PERSISTENTE EN EL NAVEGADOR
+// v1.51 · ESTADO PERSISTENTE EN EL NAVEGADOR
 // =====================================================
 const LOCAL_SNAPSHOT_KEY = "campeones-state-v29";
 let clientSnapshot = {
