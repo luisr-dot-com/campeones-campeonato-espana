@@ -1,0 +1,1 @@
+Pruebas ejecutadas: sintaxis web y Worker; calendario y orden automático; ocultación condicional de etiquetas; asterisco; nombres corregidos; conversión del JSON real de la mesa 926131177; marcador normal; rechazo de empate ambiguo; caché sin consultas repetidas. Todas correctas. Pendiente: comprobación después del despliegue en Cloudflare.

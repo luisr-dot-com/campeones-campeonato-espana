@@ -24,7 +24,7 @@ const leagueData = {
   ]
 };
 
-// Nombres de equipo vigentes (actualización 08/10/2026 · web v1.51).
+// Nombres de equipo vigentes (actualización 08/10/2026 · web v1.52).
 const teamNamesRaw = {
   "pmp":"REAL SOCIEDAD",
   "genzotto_":"TOXIRIA",
@@ -283,7 +283,7 @@ function matchPresentation(div, a, b) {
   const left = aIsStoredA ? match.aScore : match.bScore;
   const right = aIsStoredA ? match.bScore : match.aScore;
   const hasScore = Number.isFinite(left) && Number.isFinite(right);
-  const score = hasScore ? `${left} <span>–</span> ${right}` : `— <span>–</span> —`;
+  const score = hasScore ? `${left} <span>–</span> ${right}${match.assignedByTime ? '<sup class="assigned-score-mark">*</sup>' : ""}` : `— <span>–</span> —`;
 
   if (match.status === "finished") {
     return {score, status: hasScore ? "Finalizado" : "Finalizado · marcador pendiente", cls:"status-finished"};
@@ -303,12 +303,24 @@ function matchPresentation(div, a, b) {
   return {score:"— <span>–</span> —", status:"Sin comenzar", cls:"status-pending"};
 }
 
+function isRoundFinished(games) {
+  return games.length > 0 && games.every(match => match.status === "finished");
+}
+
+function calendarRoundOrder(state, totalRounds) {
+  const order = Array.from({length: totalRounds}, (_, i) => i + 1);
+  // La primera jornada no finalizada; tras acabar una, asciende la siguiente,
+  // aunque BGA todavía no haya generado sus emparejamientos.
+  const current = order.find(roundNo => !isRoundFinished(state?.rounds?.get(roundNo) || [])) ?? null;
+  return {current, order: current === null ? order : [current, ...order.filter(n => n !== current)]};
+}
+
 function renderCalendar() {
   const el = document.querySelector("#calendarRounds");
   const totalRounds = schedule(divisionPlayers(activeDivision)).length;
   const connected = Boolean(tournamentByDivision[activeDivision]);
 
-  function renderGame(a, b) {
+  function renderGame(a, b, roundFinished=false) {
     const p = matchPresentation(activeDivision, a, b);
     const match = dynamicMatch(activeDivision, a, b);
     const scoreHtml = match?.tableId
@@ -318,7 +330,7 @@ function renderCalendar() {
       <div class="match-team home">${teamOf(a)}</div>
       <div class="match-score">${scoreHtml}</div>
       <div class="match-team away">${teamOf(b)}</div>
-      <div class="match-status ${p.cls}">${p.status}</div>
+      ${roundFinished && p.cls === "status-finished" ? "" : `<div class="match-status ${p.cls}">${p.status}</div>`}
     </div>`;
   }
 
@@ -326,7 +338,7 @@ function renderCalendar() {
   if (!connected) {
     const rounds = schedule(divisionPlayers(activeDivision));
     el.innerHTML = rounds.map((games,ri) =>
-      `<section class="calendar-round"><h3>Jornada ${ri+1}</h3><div class="calendar-games">${games.map(([a,b]) => renderGame(a,b)).join("")}</div></section>`
+      `<section class="calendar-round"><h3>Jornada ${ri+1}</h3><div class="calendar-games">${games.map(([a,b]) => renderGame(a,b, games.every(([home,away]) => dynamicMatch(activeDivision,home,away)?.status === "finished"))).join("")}</div></section>`
     ).join("");
     return;
   }
@@ -334,12 +346,14 @@ function renderCalendar() {
   const state = liveState[activeDivision];
   const sections = [];
 
-  for (let roundNo = 1; roundNo <= totalRounds; roundNo++) {
+  const orderedRounds = calendarRoundOrder(state, totalRounds);
+  const currentRound = orderedRounds.current;
+  for (const roundNo of orderedRounds.order) {
     const generated = state?.rounds?.get(roundNo) || [];
     let body = "";
 
     if (generated.length) {
-      body = generated.map(match => renderGame(match.a, match.b)).join("");
+      body = generated.map(match => renderGame(match.a, match.b, isRoundFinished(generated))).join("");
     } else if (state?.error) {
       body = `<div class="round-pending round-error">No se pudieron consultar los emparejamientos de BGA.</div>`;
     } else if (state?.loading && !state?.loaded && roundNo === 1) {
@@ -349,7 +363,7 @@ function renderCalendar() {
     }
 
     sections.push(
-      `<section class="calendar-round ${generated.length ? "round-generated" : "round-awaiting"}"><h3>Jornada ${roundNo}</h3><div class="calendar-games">${body}</div></section>`
+      `<section class="calendar-round ${generated.length ? "round-generated" : "round-awaiting"}"><h3>Jornada ${roundNo}${roundNo === currentRound ? " - En curso" : ""}</h3><div class="calendar-games">${body}</div></section>`
     );
   }
 
@@ -705,7 +719,7 @@ async function mapLimit(items, limit, worker) {
 }
 
 // =====================================================
-// v1.51 · ESTADO PERSISTENTE EN EL NAVEGADOR
+// v1.52 · ESTADO PERSISTENTE EN EL NAVEGADOR
 // =====================================================
 const LOCAL_SNAPSHOT_KEY = "campeones-state-v29";
 let clientSnapshot = {
@@ -821,6 +835,7 @@ function applyDetailToMatch(div, match, detail) {
 
   return {
     ...match,
+    assignedByTime: Boolean(detail?.assignedByTime),
     phase: detail?.phase || match.phase || null,
     aScore: aScore ?? match.aScore ?? null,
     bScore: bScore ?? match.bScore ?? null
@@ -1038,7 +1053,7 @@ async function loadDivisionLiveData(div, force=false) {
       if (!match.tableId || match.status === "pending") return false;
       const entry = stored.matches?.[String(match.tableId)];
       // Partido finalizado + resultado validado: queda fijo para siempre.
-      if (match.status === "finished" && entry?.final && matchHasCompleteScore(match)) return false;
+      if (match.status === "finished" && entry?.final && normalizeSnapshotMatchEntry(entry)?.resultRulesVersion === "1.52" && matchHasCompleteScore(match)) return false;
       return true;
     });
 

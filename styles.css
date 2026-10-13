@@ -1295,3 +1295,5 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
 @media(max-width:650px){
   .elo-sync{justify-content:flex-start;align-items:flex-start;flex-direction:column;gap:6px}
 }
+
+.assigned-score-mark { font-size: .65em; margin-left: 2px; vertical-align: super; }
