@@ -1297,3 +1297,15 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
 }
 
 .assigned-score-mark { font-size: .65em; margin-left: 2px; vertical-align: super; }
+
+/* v1.54: usuario BGA debajo del equipo en la clasificación. */
+#standingsTable .standings-player{
+  display:block;
+  margin-top:3px;
+  font-size:11px;
+  line-height:1.25;
+  font-weight:400;
+  color:#607487;
+  text-transform:none;
+  letter-spacing:normal;
+}

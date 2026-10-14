@@ -280,7 +280,7 @@ function renderStandings() {
     const relegated = activeDivision < lastDivision && i >= rows.length - 2;
     return `<tr class="${promoted?"promoted":relegated?"relegated":""}">
       <td class="position">${i+1}</td>
-      <td class="player-name"><div class="standings-team"><span>${teamOf(p.name)}</span>${p.live ? '<span class="in-play-badge">En juego</span>' : ''}</div></td>
+      <td class="player-name"><div class="standings-team"><span>${teamOf(p.name)}</span><span class="standings-player">${String(p.name).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</span>${p.live ? '<span class="in-play-badge">En juego</span>' : ''}</div></td>
       <td>${p.pj}</td><td>${p.pg}</td><td>${p.pe}</td><td>${p.pp}</td>
       <td>${p.gf}</td><td>${p.gc}</td><td>${p.gf-p.gc}</td><td class="points">${p.pts}</td>
     </tr>`;
