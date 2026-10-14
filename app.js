@@ -169,8 +169,17 @@ function pairKey(a, b) {
   return [normalizeName(a), normalizeName(b)].sort().join("::");
 }
 
+// Cada mesa es un encuentro distinto, incluso entre los mismos jugadores.
+function matchKey(match) {
+  if (match.tableId) return `table:${match.tableId}`;
+  return `round:${match.step ?? "local"}:${match.position ?? 0}:${pairKey(match.a, match.b)}`;
+}
+
 function dynamicMatch(div, a, b) {
-  return liveState[div]?.matches.get(pairKey(a,b)) || null;
+  const candidates = [...(liveState[div]?.matches.values() || [])]
+    .filter(match => pairKey(match.a, match.b) === pairKey(a,b));
+  // Nunca elegir arbitrariamente una mesa si se repiten los rivales.
+  return candidates.length === 1 ? candidates[0] : null;
 }
 
 function classificationResults(div) {
@@ -185,10 +194,15 @@ function classificationResults(div) {
 }
 
 function directResult(results, a, b) {
-  return results.find(r =>
-    (normalizeName(r[0]) === normalizeName(a) && normalizeName(r[1]) === normalizeName(b)) ||
-    (normalizeName(r[0]) === normalizeName(b) && normalizeName(r[1]) === normalizeName(a))
-  );
+  const games = results.filter(r => pairKey(r[0], r[1]) === pairKey(a,b));
+  if (!games.length) return undefined;
+  // Mantener el criterio particular, sumando todos los enfrentamientos.
+  return games.reduce((total, game) => {
+    const sameOrder = normalizeName(game[0]) === normalizeName(a);
+    total[2] += sameOrder ? game[2] : game[3];
+    total[3] += sameOrder ? game[3] : game[2];
+    return total;
+  }, [a, b, 0, 0]);
 }
 
 function standings(div) {
@@ -273,8 +287,7 @@ function renderStandings() {
   }).join("");
 }
 
-function matchPresentation(div, a, b) {
-  const match = dynamicMatch(div, a, b);
+function matchPresentation(div, a, b, match = dynamicMatch(div, a, b)) {
   if (!match) {
     return {score:"— <span>–</span> —", status:"Sin comenzar", cls:"status-pending"};
   }
@@ -320,9 +333,8 @@ function renderCalendar() {
   const totalRounds = schedule(divisionPlayers(activeDivision)).length;
   const connected = Boolean(tournamentByDivision[activeDivision]);
 
-  function renderGame(a, b, roundFinished=false) {
-    const p = matchPresentation(activeDivision, a, b);
-    const match = dynamicMatch(activeDivision, a, b);
+  function renderGame(a, b, roundFinished=false, match = dynamicMatch(activeDivision, a, b)) {
+    const p = matchPresentation(activeDivision, a, b, match);
     const scoreHtml = match?.tableId
       ? `<a class="match-score-link" href="https://boardgamearena.com/tableview?table=${encodeURIComponent(match.tableId)}" target="_blank" rel="noopener noreferrer" title="Ver partida en BGA">${p.score}</a>`
       : p.score;
@@ -353,7 +365,7 @@ function renderCalendar() {
     let body = "";
 
     if (generated.length) {
-      body = generated.map(match => renderGame(match.a, match.b, isRoundFinished(generated))).join("");
+      body = generated.map(match => renderGame(match.a, match.b, isRoundFinished(generated), match)).join("");
     } else if (state?.error) {
       body = `<div class="round-pending round-error">No se pudieron consultar los emparejamientos de BGA.</div>`;
     } else if (state?.loading && !state?.loaded && roundNo === 1) {
@@ -783,7 +795,7 @@ function buildMatchCollections(matches) {
   const map = new Map();
   const rounds = new Map();
   for (const match of matches) {
-    map.set(pairKey(match.a, match.b), match);
+    map.set(matchKey(match), match);
     if (!rounds.has(match.step)) rounds.set(match.step, []);
     rounds.get(match.step).push(match);
   }
@@ -1002,7 +1014,7 @@ async function loadDivisionLiveData(div, force=false) {
     const stored = snapshotDivision(div);
 
     const baseMatches = parsed.matches.map(match => {
-      const previous = previousMatches.get(pairKey(match.a, match.b));
+      const previous = previousMatches.get(matchKey(match));
       const storedDetail = normalizeSnapshotMatchEntry(stored.matches?.[String(match.tableId)]);
       let current = {
         ...match,
@@ -1035,10 +1047,10 @@ async function loadDivisionLiveData(div, force=false) {
     }
 
     function replaceMatch(updated) {
-      const key = pairKey(updated.a, updated.b);
+      const key = matchKey(updated);
       state.matches.set(key, updated);
       const games = state.rounds.get(updated.step) || [];
-      const idx = games.findIndex(m => pairKey(m.a, m.b) === key);
+      const idx = games.findIndex(m => matchKey(m) === key);
       if (idx >= 0) games[idx] = updated;
       else games.push(updated);
       games.sort((a,b) => (a.position || 0) - (b.position || 0));
