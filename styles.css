@@ -1309,3 +1309,110 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
   text-transform:none;
   letter-spacing:normal;
 }
+
+/* v1.55: nombre del juego y campeonato en una única línea. */
+.league-hero .nav{justify-content:space-between;gap:24px;align-items:center}
+.league-hero .hero-copy{max-width:none}
+.league-hero .hero-copy h1.league-heading{
+  display:flex;
+  align-items:baseline;
+  gap:.28em;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+  font-size:var(--header-letter-size)!important;
+  line-height:1.1!important;
+}
+.league-heading .brand{
+  display:inline;
+  flex-shrink:0;
+  font:inherit;
+  letter-spacing:inherit;
+  line-height:inherit;
+}
+.league-hero .hero-copy h1.league-heading .brand-main,
+.league-hero .hero-copy h1.league-heading .league-heading-title{
+  font:inherit!important;
+  letter-spacing:inherit!important;
+  line-height:inherit!important;
+  margin:0!important;
+}
+.league-hero .hero-copy h1.league-heading .brand-main{color:#ffd12f}
+.league-hero .hero-copy h1.league-heading .league-heading-title{color:#fff}
+
+.league-hero .nav .nav-links{flex-shrink:0}
+@media(max-width:900px){
+  .league-hero .hero-copy h1.league-heading{font-size:var(--header-letter-size)!important}
+}
+
+/* v1.55: división integrada y trofeo de la altura total de la cabecera. */
+.league-hero{
+  --header-letter-size:clamp(24px,2.4vw,40px);
+  min-height:128px!important;
+  padding:12px 0 30px!important;
+  border-bottom:4px solid #ffd12f!important;
+}
+.league-hero:after{
+  display:block!important;
+  left:-2%;right:-2%;bottom:-18px;height:36px;
+  background:#f7fafc;
+  transform:rotate(-1.5deg);
+  z-index:0;
+  pointer-events:none;
+}
+.league-hero .nav{padding:0 0 0 0!important;min-height:44px!important}
+.league-hero .hero-copy{padding-top:0!important}
+.league-hero #divisionBanner{
+  min-height:0!important;
+  margin:0!important;
+  padding:0!important;
+  background:transparent!important;
+  border:0!important;
+  color:white;
+}
+.league-hero #divisionBanner:after{display:none!important}
+.league-hero #divisionBanner .container{padding:4px 0 0!important}
+.league-hero #divisionBannerTitle{
+  font-family:"Bebas Neue",Impact,sans-serif;
+  font-size:var(--header-letter-size)!important;
+  line-height:1.1!important;
+  margin:0!important;
+}
+.league-hero #divisionBanner[hidden]{display:none!important}
+.league-hero .trophy-frame{
+  top:0!important;
+  bottom:0!important;
+  right:28px!important;
+  height:100%!important;
+  width:100px!important;
+}
+@media(max-width:900px){
+  .league-hero{--header-letter-size:clamp(13px,3.6vw,32px);min-height:94px!important;padding-top:10px!important;padding-bottom:24px!important}
+  .league-hero .nav{padding-right:70px!important;min-height:28px!important}
+  .league-hero #divisionBanner .container{padding-right:70px!important}
+  .league-hero .trophy-frame{right:12px!important;width:62px!important}
+}
+
+/* v1.55: menos espacio antes del calendario y fila de jornada de 64 px. */
+#clasificacion{padding-bottom:12px!important}
+#calendario.calendar-section{padding-top:12px!important}
+#calendarRounds .calendar-round{padding-top:0!important}
+#calendarRounds .calendar-round h3{
+  display:flex;
+  align-items:center;
+  min-height:64px;
+  margin:0 0 12px;
+  padding:10px 12px;
+  box-sizing:border-box;
+}
+
+.league-hero .hero-copy h1.league-heading .league-heading-separator{
+  font:inherit!important;
+  color:#ffd12f;
+  margin:0!important;
+}
+@media(min-width:901px) and (max-width:1440px){
+  .league-hero .nav{padding-right:110px!important;gap:16px}
+  .league-hero #divisionBanner .container{padding-right:110px!important}
+  .league-hero .nav-links{gap:8px;font-size:12px;padding:8px 10px}
+  .league-hero .nav-links a{padding:5px 6px}
+}

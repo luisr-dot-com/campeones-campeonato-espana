@@ -1139,6 +1139,7 @@ async function loadAllParticipantsData(force=false) {
 }
 
 function showPage(page) {
+  document.querySelector("#divisionBanner").hidden = page !== "championship";
   document.querySelectorAll(".app-page").forEach(p => p.hidden = true);
   document.querySelector(`#${page}Page`).hidden = false;
   window.scrollTo({top:0, behavior:"smooth"});
