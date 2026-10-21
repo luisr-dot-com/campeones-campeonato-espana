@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Campeones: Oliver y Benji - Campeonato de España de Liga</title>
-  <link rel="stylesheet" href="styles.css?v=1.55d" />
+  <link rel="stylesheet" href="styles.css?v=1.6" />
 </head>
 <body>
   <header class="hero anime-hero league-hero">
@@ -18,7 +18,7 @@
     </nav>
     <div id="divisionBanner" class="division-banner division-theme-1">
       <div class="container">
-        <strong id="divisionBannerTitle">1ª División</strong>
+        <strong id="divisionBannerTitle">1ª División<span class="season-label"> - temporada 1</span></strong>
       </div>
     </div>
 
@@ -152,6 +152,15 @@
     </div>
   </footer>
 
-  <script src="app.js?v=1.55d"></script>
+  <dialog id="chronicleDialog" class="chronicle-dialog" aria-labelledby="chronicleTitle" aria-describedby="chronicleContext">
+    <div class="chronicle-toolbar"><button id="closeChronicle" type="button" aria-label="Cerrar crónica y volver al calendario">Cerrar ✕</button></div>
+    <article>
+      <p id="chronicleContext" class="chronicle-context"></p>
+      <h2 id="chronicleTitle"></h2>
+      <div id="chronicleBody" class="chronicle-body"></div>
+    </article>
+  </dialog>
+  <script src="cronicas.js?v=1.6"></script>
+  <script src="app.js?v=1.6"></script>
 </body>
 </html>

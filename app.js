@@ -335,14 +335,22 @@ function renderCalendar() {
 
   function renderGame(a, b, roundFinished=false, match = dynamicMatch(activeDivision, a, b)) {
     const p = matchPresentation(activeDivision, a, b, match);
-    const scoreHtml = match?.tableId
-      ? `<a class="match-score-link" href="https://boardgamearena.com/tableview?table=${encodeURIComponent(match.tableId)}" target="_blank" rel="noopener noreferrer" title="Ver partida en BGA">${p.score}</a>`
-      : p.score;
+    const chronicle = window.CampeonesCronicas.forMatch(match, activeDivision);
+    const chronicleId = chronicle ? String(match.tableId) : null;
+    const scoreHtml = chronicle
+      ? `<a class="match-score-link chronicle-score-link" href="#cronica-${chronicleId}" data-cronica="${chronicleId}" title="Leer crónica del partido">${p.score}</a>`
+      : match?.tableId
+        ? `<a class="match-score-link" href="https://boardgamearena.com/tableview?table=${encodeURIComponent(match.tableId)}" target="_blank" rel="noopener noreferrer" title="Ver partida en BGA">${p.score}</a>`
+        : p.score;
+    const statusHtml = chronicle
+      ? `<a class="match-status status-chronicle" href="#cronica-${chronicleId}" data-cronica="${chronicleId}"><span aria-hidden="true">📖</span> Leer crónica</a>`
+      : roundFinished && p.cls === "status-finished" ? ""
+        : `<div class="match-status ${p.cls}">${p.status}</div>`;
     return `<div class="calendar-game match-card">
       <div class="match-team home">${teamOf(a)}</div>
       <div class="match-score">${scoreHtml}</div>
       <div class="match-team away">${teamOf(b)}</div>
-      ${roundFinished && p.cls === "status-finished" ? "" : `<div class="match-status ${p.cls}">${p.status}</div>`}
+      ${statusHtml}
     </div>`;
   }
 
@@ -387,7 +395,12 @@ function updateDivisionBanner() {
   banner.className = `division-banner division-theme-${activeDivision}`;
   const page = document.querySelector("#championshipPage");
   page.className = `app-page division-theme-${activeDivision}`;
-  document.querySelector("#divisionBannerTitle").textContent = divisions[activeDivision].name;
+  const title = document.querySelector("#divisionBannerTitle");
+  title.textContent = divisions[activeDivision].name;
+  const seasonLabel = document.createElement("span");
+  seasonLabel.className = "season-label";
+  seasonLabel.textContent = ` - temporada ${window.CampeonesCronicas.season}`;
+  title.append(seasonLabel);
 
   const lastDivision = Object.keys(divisions).length;
   const promotion = document.querySelector("#legendPromotion");
@@ -993,6 +1006,7 @@ function wait(ms) {
 }
 
 async function loadDivisionLiveData(div, force=false) {
+  if (force) void window.CampeonesCronicas.refresh(true);
   const tournamentId = tournamentByDivision[div];
   const state = liveState[div];
   if (!tournamentId || !state || state.loading) return;
@@ -1155,6 +1169,8 @@ document.querySelector("#participantsLink").onclick = e => {
 document.querySelector("#rulesLink").onclick = e => { e.preventDefault(); showPage("rules"); };
 document.querySelector("#brandHome")?.addEventListener("click", e => { e.preventDefault(); showPage("championship"); });
 
+document.addEventListener("cronicas:updated", () => renderCalendar());
+window.CampeonesCronicas.init();
 renderChampionship();
 renderParticipants();
 renderEloSyncStatus();

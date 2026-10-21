@@ -1,1 +1,27 @@
-Pruebas ejecutadas: sintaxis web y Worker; calendario y orden automático; ocultación condicional de etiquetas; asterisco; nombres corregidos; conversión del JSON real de la mesa 926131177; marcador normal; rechazo de empate ambiguo; caché sin consultas repetidas. Todas correctas. Pendiente: comprobación después del despliegue en Cloudflare.
+CAMPEONES — WEB v1.6 — 18/10/2026
+
+Comprobaciones realizadas:
+- Sintaxis de app.js y cronicas.js: correcta.
+- Integración de HTML y JavaScript con DOM de prueba (jsdom).
+- Partido en curso: BGA, incluso si el índice contiene una crónica para esa mesa.
+- Finalizado sin crónica: BGA.
+- Finalizado con crónica publicada: resultado y rectángulo abren el lector.
+- Jornada terminada: oculta Finalizado y mantiene Leer crónica.
+- Jornada incompleta: conserva estados de partidos sin crónica.
+- Rechazo de borradores, temporada distinta, texto vacío, división/jornada incompatibles y mesas duplicadas.
+- Fallo de lectura del índice: conserva último índice válido; no bloquea resultados.
+- Índice actualizado sin crónica: retira el enlace a crónica y recupera BGA.
+- Lector: título y párrafos insertados como texto; no ejecuta HTML suministrado.
+- Cierre del lector y devolución de foco al enlace utilizado.
+- Nombre de jugador y etiqueta temporada 1 en las seis divisiones.
+- Partidos repetidos entre los mismos rivales permanecen separados por mesa y ambos cuentan en la clasificación.
+- La lectura del índice no añade consultas BGA ni ejecuta inferencias.
+- Script local: alta, rechazo de duplicados, reemplazo explícito, conservación de otras crónicas e ID numérico.
+- ZIP comprobado por CRC; assets idénticos a v1.55.
+
+Límites:
+- No se ha podido ejecutar Chromium para verificar el diseño visual; comprobar en escritorio y móvil después de publicar.
+- Pruebas con datos simulados, sin crónicas reales ni despliegue de producción.
+- Índice entregado vacío. No incluye el generador automático de crónicas ni su conexión a un publicador de producción.
+- Escape usa el comportamiento nativo de dialog; apertura/cierre y foco comprobados con el DOM de prueba.
+- Histórico de temporadas aplazado.
