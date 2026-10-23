@@ -1103,6 +1103,8 @@ table thead th{background:linear-gradient(var(--division-deep),#07345e)!importan
   white-space:nowrap;
 }
 .participants-table th:nth-child(3){text-align:center}
+.participants-table th:nth-child(4),
+.participants-table td:nth-child(4){text-align:center}
 .participants-table{min-width:680px}
 
 /* ===== V17 · seis divisiones + clasificación en directo + ajustes visuales ===== */

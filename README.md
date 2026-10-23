@@ -1,4 +1,4 @@
-# Campeones — Web v1.6
+# Campeones — Web v1.61
 
 ## Instalación
 
@@ -16,6 +16,9 @@ En futuras actualizaciones, conservar el contenido publicado de `cronicas/index.
 - Rectángulos de estado más anchos para textos como «En juego · Prórroga». En móvil ocupan una fila completa.
 - Tarjetas algo más compactas (altura mínima de 60 px), conservando títulos de jornada con la misma altura mínima.
 - Se conservan la cabecera con diagonal, los nombres de jugador bajo el equipo y la separación de encuentros repetidos por mesa.
+- La columna «División» del directorio de participantes queda centrada.
+- Los empates a puntos se resuelven por puntos directos acumulados, diferencia de goles directa, diferencia de goles general y orden de BGA. Todos los partidos repetidos entre los equipos implicados cuentan en los cálculos directos.
+- El punto 6 fija siete días por partido, prohíbe saltar el turno y establece una derrota por 3-0 para quien tenga menos tiempo cuando el encuentro termine por tiempo.
 
 El histórico de temporadas no está incluido. Para su futura implementación se conserva la regla acordada: temporada archivada sin indicación «Leer crónica» y sin enlaces BGA; resultado hacia la crónica si existe, o sin enlace si no existe.
 

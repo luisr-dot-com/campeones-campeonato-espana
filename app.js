@@ -193,18 +193,6 @@ function classificationResults(div) {
     .map(m => [m.a, m.b, m.aScore, m.bScore, m.status === "live"]);
 }
 
-function directResult(results, a, b) {
-  const games = results.filter(r => pairKey(r[0], r[1]) === pairKey(a,b));
-  if (!games.length) return undefined;
-  // Mantener el criterio particular, sumando todos los enfrentamientos.
-  return games.reduce((total, game) => {
-    const sameOrder = normalizeName(game[0]) === normalizeName(a);
-    total[2] += sameOrder ? game[2] : game[3];
-    total[3] += sameOrder ? game[3] : game[2];
-    return total;
-  }, [a, b, 0, 0]);
-}
-
 function standings(div) {
   const ps = divisionPlayers(div);
   const rs = classificationResults(div);
@@ -234,23 +222,54 @@ function standings(div) {
     else { a.pe++; b.pe++; a.pts++; b.pts++; }
   });
 
+  // Los criterios particulares se calculan como una miniliga entre todos los
+  // equipos empatados a puntos. Así se suman correctamente los partidos
+  // repetidos y también se resuelven los empates múltiples.
+  const groupsByPoints = new Map();
+  ps.forEach(player => {
+    if (!groupsByPoints.has(player.pts)) groupsByPoints.set(player.pts, []);
+    groupsByPoints.get(player.pts).push(player);
+  });
+
+  groupsByPoints.forEach(group => {
+    group.forEach(player => {
+      player.directPts = 0;
+      player.directGf = 0;
+      player.directGc = 0;
+    });
+
+    if (group.length < 2) return;
+    const byName = new Map(group.map(player => [normalizeName(player.name), player]));
+
+    rs.forEach(([home, away, hs, as]) => {
+      const a = byName.get(normalizeName(home));
+      const b = byName.get(normalizeName(away));
+      if (!a || !b) return;
+
+      a.directGf += hs; a.directGc += as;
+      b.directGf += as; b.directGc += hs;
+
+      if (hs > as) a.directPts += 3;
+      else if (hs < as) b.directPts += 3;
+      else { a.directPts++; b.directPts++; }
+    });
+  });
+
   return ps.sort((a,b) => {
     if (b.pts !== a.pts) return b.pts - a.pts;
 
-    // 1) Goal average particular cuando hay un partido directo finalizado.
-    const direct = directResult(rs, a.name, b.name);
-    if (direct && direct[2] !== direct[3]) {
-      const aIsHome = normalizeName(direct[0]) === normalizeName(a.name);
-      const aGoals = aIsHome ? direct[2] : direct[3];
-      const bGoals = aIsHome ? direct[3] : direct[2];
-      if (aGoals !== bGoals) return bGoals - aGoals;
-    }
+    // 1) Puntos totales en todos los enfrentamientos directos.
+    if (b.directPts !== a.directPts) return b.directPts - a.directPts;
 
-    // 2) Goal average general.
+    // 2) Diferencia de goles en todos los enfrentamientos directos.
+    const directGd = (b.directGf - b.directGc) - (a.directGf - a.directGc);
+    if (directGd) return directGd;
+
+    // 3) Diferencia de goles general.
     const gd = (b.gf - b.gc) - (a.gf - a.gc);
     if (gd) return gd;
 
-    // 3) Desempate que muestre BGA. Solo lo usamos cuando ambos ya han jugado,
+    // 4) Desempate que muestre BGA. Solo lo usamos cuando ambos ya han jugado,
     // para no convertir el orden inicial del torneo en un falso desempate.
     if (a.pj > 0 && b.pj > 0 && Number.isFinite(a.bgaDisplayRank) && Number.isFinite(b.bgaDisplayRank)) {
       if (a.bgaDisplayRank !== b.bgaDisplayRank) return a.bgaDisplayRank - b.bgaDisplayRank;

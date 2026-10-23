@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Campeones: Oliver y Benji - Campeonato de España de Liga</title>
-  <link rel="stylesheet" href="styles.css?v=1.6" />
+  <link rel="stylesheet" href="styles.css?v=1.61" />
 </head>
 <body>
   <header class="hero anime-hero league-hero">
@@ -98,9 +98,10 @@
           <p>La puntuación será de <strong>3 puntos por victoria, 1 por empate y 0 por derrota</strong>.</p>
           <p>En caso de empate a puntos, se aplicarán por orden los siguientes criterios:</p>
           <ol>
-            <li><strong>Goal average particular:</strong> primará el resultado del partido entre los equipos empatados.</li>
-            <li>Si ese partido terminó empatado, se utilizará el <strong>goal average general</strong>: goles a favor menos goles en contra en el conjunto de la Liga.</li>
-            <li>Si el empate persiste, se tendrá en cuenta el <strong>desempate realizado por BGA</strong>, basado en el ELO de los rivales vencidos.</li>
+            <li><strong>Puntos en los enfrentamientos directos:</strong> puntos totales obtenidos en los partidos disputados entre los equipos implicados.</li>
+            <li><strong>Goal average particular:</strong> si continúa el empate, se utilizará la diferencia entre los goles a favor y en contra en los enfrentamientos directos.</li>
+            <li><strong>Goal average general:</strong> si el empate persiste, se utilizará la diferencia global de goles en el conjunto de la Liga.</li>
+            <li><strong>Desempate de BGA:</strong> como último criterio, se respetará el desempate realizado por BGA, basado en el ELO de los rivales vencidos.</li>
           </ol>
           <p class="rule-alert"><strong>Importante:</strong> por este sistema de desempate, la clasificación mostrada por los torneos de BGA puede diferir de la clasificación final oficial de esta Liga.</p>
         </div></article>
@@ -123,8 +124,8 @@
 
         <article><span class="rule-no">06</span><div>
           <h3>Duración de los partidos y de la temporada</h3>
-          <p>La duración de los partidos será, en principio, de <strong>7 días</strong>. <strong>No estará permitido saltar el turno del rival.</strong></p>
-          <p>Cada temporada tendrá una duración aproximada de <strong>dos meses</strong>. Cuando esos dos meses coincidan con épocas especiales, como <strong>Navidades, verano o Semana Santa</strong>, se estudiará ampliar la duración o incluso pausar la Liga.</p>
+          <p>La duración de los partidos será de <strong>siete días</strong>. <strong>No está permitido saltar el turno del rival.</strong></p>
+          <p>Si, una vez transcurridos los siete días, el partido finaliza por tiempo, será declarado perdedor el jugador que disponga de menos tiempo restante. El resultado oficial será de <strong>3-0</strong> a favor de su rival.</p>
         </div></article>
 
         <article><span class="rule-no">07</span><div>
@@ -160,7 +161,7 @@
       <div id="chronicleBody" class="chronicle-body"></div>
     </article>
   </dialog>
-  <script src="cronicas.js?v=1.6"></script>
-  <script src="app.js?v=1.6"></script>
+  <script src="cronicas.js?v=1.61"></script>
+  <script src="app.js?v=1.61"></script>
 </body>
 </html>

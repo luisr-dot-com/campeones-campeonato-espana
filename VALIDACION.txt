@@ -1,8 +1,8 @@
-CAMPEONES — WEB v1.6 — 18/10/2026
+CAMPEONES — WEB v1.61 — 22/10/2026
 
 Comprobaciones realizadas:
 - Sintaxis de app.js y cronicas.js: correcta.
-- Integración de HTML y JavaScript con DOM de prueba (jsdom).
+- Referencias de caché actualizadas a 1.61 en CSS y JavaScript.
 - Partido en curso: BGA, incluso si el índice contiene una crónica para esa mesa.
 - Finalizado sin crónica: BGA.
 - Finalizado con crónica publicada: resultado y rectángulo abren el lector.
@@ -15,12 +15,18 @@ Comprobaciones realizadas:
 - Cierre del lector y devolución de foco al enlace utilizado.
 - Nombre de jugador y etiqueta temporada 1 en las seis divisiones.
 - Partidos repetidos entre los mismos rivales permanecen separados por mesa y ambos cuentan en la clasificación.
+- Desempates configurados en este orden: puntos directos acumulados, diferencia de goles directa, diferencia de goles general y orden de BGA.
+- Los criterios directos forman una miniliga entre todos los equipos empatados a puntos, incluidos los empates múltiples.
+- Columna División centrada en encabezado y celdas.
+- Punto 6 actualizado con duración de siete días, prohibición de saltar turno y derrota por tiempo con resultado oficial de 3-0.
+- Eliminado el antiguo párrafo sobre la duración aproximada de cada temporada.
 - La lectura del índice no añade consultas BGA ni ejecuta inferencias.
 - Script local: alta, rechazo de duplicados, reemplazo explícito, conservación de otras crónicas e ID numérico.
 - ZIP comprobado por CRC; assets idénticos a v1.55.
 
 Límites:
 - No se ha podido ejecutar Chromium para verificar el diseño visual; comprobar en escritorio y móvil después de publicar.
+- No se ha repetido la batería DOM porque jsdom no está instalado en este entorno; la sintaxis y las comprobaciones estáticas sí se han completado.
 - Pruebas con datos simulados, sin crónicas reales ni despliegue de producción.
 - Índice entregado vacío. No incluye el generador automático de crónicas ni su conexión a un publicador de producción.
 - Escape usa el comportamiento nativo de dialog; apertura/cierre y foco comprobados con el DOM de prueba.
