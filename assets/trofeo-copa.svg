@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 440" role="img" aria-label="Trofeo de Copa">
+<defs>
+  <linearGradient id="silver" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#555a67"/><stop offset=".16" stop-color="#d7dce0"/><stop offset=".33" stop-color="#f9fbff"/><stop offset=".52" stop-color="#a4aab3"/><stop offset=".73" stop-color="#f3f5f8"/><stop offset="1" stop-color="#4c525d"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff1b3"/><stop offset=".28" stop-color="#b68a31"/><stop offset=".49" stop-color="#f6df81"/><stop offset=".7" stop-color="#b98921"/><stop offset="1" stop-color="#6b4818"/></linearGradient>
+  <linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#151d2c"/><stop offset=".55" stop-color="#3b4659"/><stop offset="1" stop-color="#10141b"/></linearGradient>
+  <linearGradient id="bowl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7fafc"/><stop offset=".32" stop-color="#c4cad1"/><stop offset=".62" stop-color="#77828e"/><stop offset="1" stop-color="#444c57"/></linearGradient>
+  <filter id="shadow" x="-35%" y="-20%" width="170%" height="160%"><feDropShadow dx="2" dy="9" stdDeviation="6" flood-color="#020b13" flood-opacity=".40"/></filter>
+</defs>
+<g filter="url(#shadow)">
+<!-- Ornamental spherical finial -->
+<circle cx="170" cy="28" r="15" fill="url(#gold)" stroke="#6d5325" stroke-width="2"/>
+<path d="M163 45h14l6 17h-26z" fill="url(#silver)" stroke="#565d66" stroke-width="2"/>
+<!-- Crowned handles -->
+<path d="M92 83C21 51 19 148 62 180c20 15 41 5 53-12l-12-20c-15 24-36 20-43-4-8-27 6-51 44-36z" fill="url(#silver)" stroke="#535963" stroke-width="4"/>
+<path d="M248 83c71-32 73 65 30 97-20 15-41 5-53-12l12-20c15 24 36 20 43-4 8-27-6-51-44-36z" fill="url(#silver)" stroke="#535963" stroke-width="4"/>
+<path d="M61 85c-18 20-14 64 9 76" fill="none" stroke="#fff" stroke-width="5" opacity=".65"/>
+<path d="M279 85c18 20 14 64-9 76" fill="none" stroke="#fff" stroke-width="5" opacity=".65"/>
+<!-- Rim and bowl -->
+<ellipse cx="170" cy="77" rx="80" ry="18" fill="url(#silver)" stroke="#545965" stroke-width="3"/>
+<path d="M90 77c3 75 28 142 80 147 52-5 77-72 80-147-20 17-140 17-160 0z" fill="url(#bowl)" stroke="#485462" stroke-width="3"/>
+<path d="M111 97c7 69 27 105 55 119" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".54"/>
+<path d="M226 97c-7 65-23 96-39 113" fill="none" stroke="#434a54" stroke-width="7" stroke-linecap="round" opacity=".36"/>
+<ellipse cx="170" cy="77" rx="80" ry="14" fill="none" stroke="#fbfcff" stroke-width="4"/>
+<!-- Gold shield on bowl -->
+<path d="M170 117l32 12v30c-3 22-17 33-32 40-15-7-29-18-32-40v-30z" fill="url(#gold)" stroke="#74551e" stroke-width="3"/>
+<path d="M170 129l7 14 16 2-12 12 3 16-14-7-14 7 3-16-12-12 16-2z" fill="#f9f1d0" stroke="#9a782c" stroke-width="1"/>
+<!-- Stem -->
+<path d="M159 222h22l7 63h-36z" fill="url(#silver)" stroke="#4b545f" stroke-width="3"/>
+<ellipse cx="170" cy="285" rx="40" ry="9" fill="url(#silver)" stroke="#49515a" stroke-width="3"/>
+<path d="M147 288h46l18 35h-82z" fill="url(#silver)" stroke="#505969" stroke-width="3"/>
+<path d="M128 316h84l16 14-116 0z" fill="url(#gold)" stroke="#7e5d24" stroke-width="3"/>
+<!-- Dark base -->
+<path d="M112 330h116l26 72H86z" fill="url(#dark)" stroke="#997d46" stroke-width="4"/>
+<path d="M93 391h154l16 16H77z" fill="url(#gold)" stroke="#66502a" stroke-width="3"/>
+<rect x="104" y="346" width="132" height="35" rx="4" fill="url(#gold)" stroke="#8b6b2e" stroke-width="2"/>
+<text x="170" y="370" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="22" letter-spacing="2" fill="#2b2930">COPA</text>
+</g></svg>

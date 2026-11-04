@@ -1247,6 +1247,13 @@ function showPage(section) {
 function setCompetition(mode) {
   activeCompetition = mode === "cup" ? "cup" : "league";
   document.body.dataset.competition = activeCompetition;
+  // Ambas competiciones comparten el mismo marco: solo cambia el recurso gráfico.
+  const trophy = document.querySelector("#competitionTrophy");
+  if (trophy) {
+    const isCup = activeCompetition === "cup";
+    trophy.src = isCup ? "assets/trofeo-copa.svg" : "assets/trofeo-recortado.webp";
+    trophy.alt = isCup ? "Trofeo de Copa" : "Trofeo de Liga";
+  }
   document.querySelector("#leagueCompetitionTab")?.classList.toggle("active", activeCompetition === "league");
   document.querySelector("#cupCompetitionTab")?.classList.toggle("active", activeCompetition === "cup");
   document.querySelector("#leagueCompetitionTab")?.setAttribute("aria-pressed", String(activeCompetition === "league"));
