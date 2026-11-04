@@ -1815,3 +1815,22 @@ body[data-competition="cup"] .cup-tie-bye .cup-team-name,
 body[data-competition="cup"] .cup-tie-bye .cup-player-name{
   text-align:center;
 }
+
+/* 2.0.1 - Corrección táctil de Copa: scroll independiente en ambos ejes.
+   La altura estable evita que flex estire el lienzo y anule el scroll vertical. */
+body[data-competition="cup"] .cup-bracket-scroll{
+  flex:none;
+  width:100%;
+  overflow-x:auto;
+  overflow-y:auto;
+  touch-action:pan-x pan-y;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+  overscroll-behavior-y:auto;
+}
+@media(max-width:900px){
+  body[data-competition="cup"] .cup-bracket-scroll{
+    height:clamp(300px,calc(100dvh - 235px),850px);
+    max-height:none;
+  }
+}
