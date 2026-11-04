@@ -172,7 +172,22 @@
 
   document.addEventListener("click",event => {
     const playerButton=event.target.closest("[data-cup-player]");if (playerButton) showTeam(playerButton.dataset.cupPlayer);
-    const jump=event.target.closest("[data-cup-jump]");if (jump) {const scroll=$("#cupBracketScroll");if (scroll) scroll.scrollTo({left:jump.dataset.cupJump === "end" ? scroll.scrollWidth-scroll.clientWidth : 0,behavior:"smooth"});}
+    const jump=event.target.closest("[data-cup-jump]");
+    if (jump) {
+      const scroll=$("#cupBracketScroll");
+      const finalCard=$("#cupBracket [data-cup-match=\"C5-0\"]");
+      if (scroll) {
+        const isFinal=jump.dataset.cupJump === "end";
+        // Al seleccionar Fase final, centrar la tarjeta también en vertical.
+        // No depender de un número de píxeles fijo: la altura es adaptable.
+        const top=isFinal && finalCard
+          ? finalCard.getBoundingClientRect().top-scroll.getBoundingClientRect().top+scroll.scrollTop
+            - (scroll.clientHeight-finalCard.offsetHeight)/2
+          : 0;
+        scroll.scrollTo({left:isFinal ? scroll.scrollWidth-scroll.clientWidth : 0,
+          top:Math.max(0,top),behavior:"smooth"});
+      }
+    }
     if (event.target.closest("#closeCupTeamDialog")) $("#cupTeamDialog")?.close();
   });
   if (typeof ResizeObserver !== "undefined") {
@@ -229,13 +244,16 @@
             finally {clearTimeout(timeout);}
             if(!response.ok) return;
             const data=await response.json(); success++;
-            if(applyValidatedDetail(m,data))valid++;
+            if(applyValidatedDetail(m,data)) valid++;
+            else console.info("Copa: el Worker no devuelve dos marcadores de jugador verificables para la mesa",m.table);
           }catch(error){console.warn("Copa: sin detalle válido",m.table,error);}
         }));
       }
       if(valid){saveCupResults();render();}
-      if(status)status.textContent=valid ? `${valid} marcador(es) verificados de ${matches.length} · ${new Date().toLocaleTimeString("es-ES")}` :
-        (success ? "Consulta realizada; BGA no facilitó marcadores verificables de los partidos en curso" : "No se pudo consultar BGA; se conservan los datos anteriores");
+      if(status)status.textContent=valid
+        ? `${valid} marcador(es) recibidos de ${matches.length} mesas · ${new Date().toLocaleTimeString("es-ES")} · El cuadro completo no se sincroniza aún`
+        : (success ? "Sin marcadores parciales comprobables; el cuadro sigue siendo una instantánea"
+                   : "No se pudo consultar BGA; se conservan los datos anteriores");
     } finally {if(button){button.disabled=false;button.textContent="Actualizar datos";}}
   }
   restoreCupResults();
