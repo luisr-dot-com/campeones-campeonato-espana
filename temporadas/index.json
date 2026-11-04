@@ -1,0 +1,10 @@
+{
+  "currentSeason": 1,
+  "seasons": [
+    {
+      "id": 1,
+      "status": "current",
+      "label": "Temporada 1"
+    }
+  ]
+}

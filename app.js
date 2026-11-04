@@ -292,6 +292,10 @@ function renderDivisionTabs() {
 }
 
 function renderStandings() {
+  if (window.CampeonesTemporadas?.isArchiveSelected()) {
+    window.CampeonesTemporadas.renderLeagueStandings(activeDivision);
+    return;
+  }
   const rows = standings(activeDivision);
   const lastDivision = Object.keys(divisions).length;
   document.querySelector("#standingsTable tbody").innerHTML = rows.map((p,i) => {
@@ -348,6 +352,10 @@ function calendarRoundOrder(state, totalRounds) {
 }
 
 function renderCalendar() {
+  if (window.CampeonesTemporadas?.isArchiveSelected()) {
+    window.CampeonesTemporadas.renderLeagueCalendar(activeDivision);
+    return;
+  }
   const el = document.querySelector("#calendarRounds");
   const totalRounds = schedule(divisionPlayers(activeDivision)).length;
   const connected = Boolean(tournamentByDivision[activeDivision]);
@@ -418,7 +426,7 @@ function updateDivisionBanner() {
   title.textContent = divisions[activeDivision].name;
   const seasonLabel = document.createElement("span");
   seasonLabel.className = "season-label";
-  seasonLabel.textContent = ` - temporada ${window.CampeonesCronicas.season}`;
+  seasonLabel.textContent = ` - temporada ${window.CampeonesTemporadas?.selectedSeason() || window.CampeonesCronicas.season}`;
   title.append(seasonLabel);
 
   const lastDivision = Object.keys(divisions).length;
@@ -490,6 +498,11 @@ function formatSavedTime(value) {
 
 function renderSyncStatus() {
   const box = ensureSyncBox();
+  if (window.CampeonesTemporadas?.isArchiveSelected()) {
+    box.hidden = false;
+    box.innerHTML = `<small class="bga-updated">Temporada archivada · resultados definitivos</small>`;
+    return;
+  }
   const tournamentId = tournamentByDivision[activeDivision];
   if (!tournamentId) {
     box.hidden = true;
@@ -1171,22 +1184,86 @@ async function loadAllParticipantsData(force=false) {
   }
 }
 
-function showPage(page) {
-  document.querySelector("#divisionBanner").hidden = page !== "championship";
+let activeCompetition = "league";
+let activeSection = "championship";
+
+function renderCompetitionParticipants() {
+  const cup = activeCompetition === "cup";
+  document.querySelector("#participantsPageTitle").textContent = cup ? "Participantes de Copa" : "Participantes de Liga";
+  document.querySelector("#eloSyncStatus").hidden = cup;
+  if (cup) {
+    window.CampeonesCopa?.renderParticipants(document.querySelector("#allParticipants"));
+  } else {
+    renderParticipants();
+    renderEloSyncStatus();
+  }
+}
+
+function renderCompetitionRules() {
+  const cup = activeCompetition === "cup";
+  document.querySelector("#rulesPageTitle").textContent = cup ? "Reglamento de Copa" : "Reglamento de Liga";
+  document.querySelector("#leagueRules").hidden = cup;
+  document.querySelector("#cupRules").hidden = !cup;
+}
+
+function showPage(section) {
+  activeSection = ["championship", "participants", "rules", "history"].includes(section) ? section : "championship";
+  const page = activeSection === "championship" && activeCompetition === "cup" ? "cup" : activeSection;
+  if (activeCompetition === "cup") {
+    const banner = document.querySelector("#divisionBanner");
+    banner.className = "division-banner cup-theme";
+    const title = document.querySelector("#divisionBannerTitle");
+    title.textContent = "Copa";
+    const season = document.createElement("span");
+    season.className = "season-label";
+    season.textContent = ` - temporada ${window.CampeonesTemporadas?.currentSeason() || 1}`;
+    title.append(season);
+  } else {
+    updateDivisionBanner();
+  }
   document.querySelectorAll(".app-page").forEach(p => p.hidden = true);
   document.querySelector(`#${page}Page`).hidden = false;
+
+  document.querySelectorAll(".nav-links a").forEach(link => link.classList.remove("active"));
+  const activeLink = {
+    championship:"#championshipLink", participants:"#participantsLink",
+    rules:"#rulesLink", history:"#historyLink"
+  }[activeSection];
+  document.querySelector(activeLink)?.classList.add("active");
+
+  if (activeSection === "championship") {
+    if (activeCompetition === "cup") {
+      window.CampeonesCopa?.render();
+    } else renderChampionship();
+  }
+  if (activeSection === "participants") renderCompetitionParticipants();
+  if (activeSection === "rules") renderCompetitionRules();
+  if (activeSection === "history") window.CampeonesTemporadas?.renderHistory(activeCompetition);
+
+  document.dispatchEvent(new CustomEvent("campeones:pagechange", {detail:{page, section:activeSection, competition:activeCompetition}}));
   window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function setCompetition(mode) {
+  activeCompetition = mode === "cup" ? "cup" : "league";
+  document.body.dataset.competition = activeCompetition;
+  document.querySelector("#leagueCompetitionTab")?.classList.toggle("active", activeCompetition === "league");
+  document.querySelector("#cupCompetitionTab")?.classList.toggle("active", activeCompetition === "cup");
+  document.querySelector("#leagueCompetitionTab")?.setAttribute("aria-pressed", String(activeCompetition === "league"));
+  document.querySelector("#cupCompetitionTab")?.setAttribute("aria-pressed", String(activeCompetition === "cup"));
+  showPage(activeSection);
 }
 
 document.querySelector("#championshipLink").onclick = e => { e.preventDefault(); showPage("championship"); };
 document.querySelector("#participantsLink").onclick = e => {
   e.preventDefault();
   showPage("participants");
-  renderParticipants();
-  renderEloSyncStatus();
 };
 document.querySelector("#rulesLink").onclick = e => { e.preventDefault(); showPage("rules"); };
+document.querySelector("#historyLink").onclick = e => { e.preventDefault(); showPage("history"); };
 document.querySelector("#brandHome")?.addEventListener("click", e => { e.preventDefault(); showPage("championship"); });
+document.querySelector("#leagueCompetitionTab")?.addEventListener("click", () => setCompetition("league"));
+document.querySelector("#cupCompetitionTab")?.addEventListener("click", () => setCompetition("cup"));
 
 document.addEventListener("cronicas:updated", () => renderCalendar());
 window.CampeonesCronicas.init();
@@ -1195,3 +1272,11 @@ renderParticipants();
 renderEloSyncStatus();
 showPage("championship");
 bootstrapSavedData();
+
+window.CampeonesApp = {
+  showPage,
+  setCompetition,
+  activeCompetition: () => activeCompetition,
+  activeSection: () => activeSection,
+  renderCompetitionParticipants
+};

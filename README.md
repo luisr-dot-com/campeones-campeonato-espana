@@ -1,12 +1,20 @@
-# Campeones — Web v1.61
+# Campeones — Web 2.0 integrada
 
 ## Instalación
 
-Publicar `index.html`, `app.js`, `styles.css`, `cronicas.js` y la carpeta `cronicas/` en el proyecto actual de la web. `assets/` se incluye para una publicación completa, pero no ha cambiado. No sustituir el Worker actual ni borrar KV o datos del navegador.
+Publicar `index.html`, `app.js`, `copa.js`, `temporadas.js`, `styles.css`, `cronicas.js` y las carpetas `cronicas/`, `temporadas/` y `assets/` en el proyecto actual de la web. No sustituir el Worker actual ni borrar KV o datos del navegador.
 
 En futuras actualizaciones, conservar el contenido publicado de `cronicas/index.json`: no reemplazarlo por un índice vacío.
 
 ## Comportamiento
+
+### Estructura general
+
+- La cabecera común muestra a la izquierda «Campeones — Campeonato de España» y la división activa o la Copa, a continuación los dos selectores alineados y, en el extremo derecho, el trofeo.
+- El selector Liga/Copa ocupa el mismo ancho que las pestañas Campeonato, Participantes, Reglamento e Histórico situadas inmediatamente debajo.
+- Cambiar entre Liga y Copa conserva la sección abierta: por ejemplo, desde Participantes de Liga se pasa directamente a Participantes de Copa.
+
+### Liga
 
 - En curso: marcador enlazado a la mesa BGA.
 - Finalizado sin crónica: marcador enlazado a BGA y estado «Finalizado», salvo que toda la jornada esté cerrada y se oculte esa etiqueta.
@@ -17,10 +25,30 @@ En futuras actualizaciones, conservar el contenido publicado de `cronicas/index.
 - Tarjetas algo más compactas (altura mínima de 60 px), conservando títulos de jornada con la misma altura mínima.
 - Se conservan la cabecera con diagonal, los nombres de jugador bajo el equipo y la separación de encuentros repetidos por mesa.
 - La columna «División» del directorio de participantes queda centrada.
-- Los empates a puntos se resuelven por puntos directos acumulados, diferencia de goles directa, diferencia de goles general y orden de BGA. Todos los partidos repetidos entre los equipos implicados cuentan en los cálculos directos.
+- Los empates a puntos se resuelven mediante una miniliga conjunta entre todos los equipos implicados: puntos directos acumulados, diferencia de goles directa, diferencia de goles general y orden de BGA. Todos los enfrentamientos repetidos cuentan.
 - El punto 6 fija siete días por partido, prohíbe saltar el turno y establece una derrota por 3-0 para quien tenga menos tiempo cuando el encuentro termine por tiempo.
 
-El histórico de temporadas no está incluido. Para su futura implementación se conserva la regla acordada: temporada archivada sin indicación «Leer crónica» y sin enlaces BGA; resultado hacia la crónica si existe, o sin enlace si no existe.
+### Copa
+
+- Liga y Copa se integran en la misma web y conservan la misma cabecera visual.
+- El cuadro completo se recorre horizontalmente desde la ronda preliminar hasta la final.
+- Cada eliminatoria usa un único marcador global, contenido en un recuadro ligeramente sombreado que actúa como enlace directo a la mesa de BGA.
+- Los pases directos, el estado, el porcentaje y los clasificados se muestran dentro de cada tarjeta, sin códigos internos de BGA.
+- Al pulsar un equipo se abre una ventana con su recorrido y sus resultados en la Copa.
+- Participantes utiliza el mismo formato visual que la Liga, sin columna de división y con las columnas Equipo, Jugador y ELO en el sorteo.
+- El ELO queda fijado con la copia previa al inicio de la Copa, guardada el 1 de noviembre de 2026; no se actualiza durante el torneo. Garban figura con 143 ELO.
+- Las plazas todavía sin equipo se representan mediante puntos suspensivos y los accesos del cuadro se reducen a «Rondas previas» y «Fase final».
+- El Reglamento de Copa contiene cuatro apartados: participantes y formato; emparejamientos y pases directos; ida y vuelta; y clasificación para la siguiente ronda.
+- La versión incorpora una instantánea local del cuadro en curso. La actualización automática desde el torneo de BGA requerirá conectar estos datos al Worker de producción.
+
+### Temporadas
+
+- Cada competición dispone de su propio Histórico. La temporada actual no aparece como temporada archivada.
+- Si todavía no hay temporadas cerradas, la página muestra un mensaje específico para Liga o Copa y oculta el selector.
+- La estructura admite temporadas archivadas mediante `temporadas/index.json` y archivos `temporadas/temporada-X.json`.
+- Una temporada archivada conserva nombres históricos, participantes, resultados, clasificación final, cuadro de Copa, pases directos, clasificados y campeón.
+- Una temporada archivada no contiene enlaces a BGA. En Liga, el resultado abre la crónica si existe; si no existe, queda como texto. En Copa, los resultados archivados quedan como texto mientras no haya crónicas de Copa.
+- El contrato previsto es guardar cada cierre en Cloudflare KV y exportar además una copia `temporada-X.json`. Esta entrega prepara el lector y el esquema; no inventa temporadas anteriores ni modifica el KV actual.
 
 ## Cómo se incorporan las crónicas
 
@@ -71,4 +99,4 @@ Si el publicador sirve ese contrato desde un Worker, se puede definir `window.CA
 
 ## Alcance de la entrega
 
-Paquete preparado y comprobado localmente. No desplegado ni probado contra crónicas reales de producción. Ver `VALIDACION.txt` para el detalle de las comprobaciones.
+Paquete preparado y comprobado localmente. Todos los recursos visuales y tipografías se sirven desde `assets/`; solo permanecen externos el Worker de datos y los enlaces funcionales a BGA. No desplegado ni probado contra crónicas reales de producción. Ver `VALIDACION.txt` para el detalle de las comprobaciones.

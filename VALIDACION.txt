@@ -1,8 +1,8 @@
-CAMPEONES — WEB v1.61 — 22/10/2026
+CAMPEONES — WEB 2.0 INTEGRADA — 04/11/2026
 
 Comprobaciones realizadas:
-- Sintaxis de app.js y cronicas.js: correcta.
-- Referencias de caché actualizadas a 1.61 en CSS y JavaScript.
+- Sintaxis de app.js, copa.js, temporadas.js y cronicas.js: correcta.
+- Referencias de caché actualizadas a 2.3 en CSS y JavaScript.
 - Partido en curso: BGA, incluso si el índice contiene una crónica para esa mesa.
 - Finalizado sin crónica: BGA.
 - Finalizado con crónica publicada: resultado y rectángulo abren el lector.
@@ -17,17 +17,39 @@ Comprobaciones realizadas:
 - Partidos repetidos entre los mismos rivales permanecen separados por mesa y ambos cuentan en la clasificación.
 - Desempates configurados en este orden: puntos directos acumulados, diferencia de goles directa, diferencia de goles general y orden de BGA.
 - Los criterios directos forman una miniliga entre todos los equipos empatados a puntos, incluidos los empates múltiples.
+- Todos los enfrentamientos directos repetidos forman parte de esa miniliga y se acumulan correctamente.
+- Reglamento actualizado con la redacción exacta de los cuatro criterios acordados.
 - Columna División centrada en encabezado y celdas.
 - Punto 6 actualizado con duración de siete días, prohibición de saltar turno y derrota por tiempo con resultado oficial de 3-0.
 - Eliminado el antiguo párrafo sobre la duración aproximada de cada temporada.
 - La lectura del índice no añade consultas BGA ni ejecuta inferencias.
 - Script local: alta, rechazo de duplicados, reemplazo explícito, conservación de otras crónicas e ID numérico.
-- ZIP comprobado por CRC; assets idénticos a v1.55.
+- Cabecera común compacta: identidad y división/Copa a la izquierda, selectores de igual ancho en el centro y trofeo a la derecha.
+- Liga y Copa conservan secciones independientes de Campeonato, Participantes, Reglamento e Histórico.
+- El cambio de competición conserva la sección activa.
+- Participantes de Liga mantiene la columna División y la actualización de ELO.
+- Participantes de Copa contiene 41 inscritos, sin columna División y con ELO inicial fijo para todos ellos.
+- Garban figura con 143 ELO, igual que el resto de participantes.
+- Reglamento de Liga comprobado con siete artículos y sin el antiguo punto «Copa y Supercopa».
+- Reglamento de Copa comprobado con los cuatro artículos acordados.
+- Cuadro de Copa completo desde ronda preliminar hasta final, con desplazamiento horizontal.
+- Copa: un único marcador global por eliminatoria y un único enlace BGA sobre el propio marcador.
+- Copa: sin etiquetas «BGA» ni identificadores internos E41/E53; nombres de equipo y jugador visibles.
+- Copa: ventana emergente de recorrido del equipo comprobada.
+- Copa: Garban se muestra como Garban FC.
+- Copa: plazas por decidir representadas mediante «…», sin los textos «Ganador pendiente» y «Pendiente».
+- Copa: accesos «Rondas previas» y «Fase final» desplazan el cuadro a sus extremos.
+- Imágenes de las seis divisiones, cabeceras y tipografías almacenadas localmente; CSS sin recursos visuales externos.
+- Eliminada del paquete la imagen completa del trofeo que ya no utilizaba la web.
+- Históricos independientes para Liga y Copa; sin temporadas cerradas muestran mensajes específicos y ocultan el selector.
+- Histórico: lector de índice, carga por temporada y representación de Liga y Copa archivadas preparados.
+- Histórico archivado: sin enlaces BGA; crónica de Liga opcional desde el marcador y Copa sin enlace.
+- Comprobación visual local realizada en navegador de escritorio para Liga, Copa y ventana de recorrido.
 
 Límites:
-- No se ha podido ejecutar Chromium para verificar el diseño visual; comprobar en escritorio y móvil después de publicar.
-- No se ha repetido la batería DOM porque jsdom no está instalado en este entorno; la sintaxis y las comprobaciones estáticas sí se han completado.
 - Pruebas con datos simulados, sin crónicas reales ni despliegue de producción.
 - Índice entregado vacío. No incluye el generador automático de crónicas ni su conexión a un publicador de producción.
 - Escape usa el comportamiento nativo de dialog; apertura/cierre y foco comprobados con el DOM de prueba.
-- Histórico de temporadas aplazado.
+- Solo existe la temporada 1 actual; no se han inventado archivos de temporadas cerradas.
+- El cuadro de Copa incluido es una instantánea local. Falta conectar su actualización automática al Worker de producción.
+- Conviene repetir la comprobación visual en móvil tras publicar en el entorno real.

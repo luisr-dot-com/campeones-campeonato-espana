@@ -3,29 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Campeones: Oliver y Benji - Campeonato de España de Liga</title>
-  <link rel="stylesheet" href="styles.css?v=1.61" />
+  <title>Campeones: Oliver y Benji - Campeonato de España</title>
+  <link rel="stylesheet" href="styles.css?v=2.3" />
 </head>
 <body>
   <header class="hero anime-hero league-hero">
-    <nav class="nav container">
-      <div class="hero-copy"><h1 class="league-heading"><a class="brand" href="#campeonato" id="brandHome"><span class="brand-main">CAMPEONES</span></a><span class="league-heading-separator" aria-hidden="true">—</span><span class="league-heading-title">Campeonato de España de Liga</span></h1></div>
-      <div class="nav-links">
-        <a href="#campeonato" id="championshipLink">Campeonato</a>
-        <a href="#participantes" id="participantsLink">Participantes</a>
-        <a href="#reglamento" id="rulesLink">Reglamento</a>
+    <div class="header-layout container">
+      <div class="header-identity">
+        <div class="hero-copy"><h1 class="league-heading"><a class="brand" href="#campeonato" id="brandHome"><span class="brand-main">CAMPEONES</span></a><span class="league-heading-separator" aria-hidden="true">—</span><span class="league-heading-title">Campeonato de España</span></h1></div>
+        <div id="divisionBanner" class="division-banner division-theme-1">
+          <strong id="divisionBannerTitle">1ª División<span class="season-label"> - temporada 1</span></strong>
+        </div>
       </div>
-    </nav>
-    <div id="divisionBanner" class="division-banner division-theme-1">
-      <div class="container">
-        <strong id="divisionBannerTitle">1ª División<span class="season-label"> - temporada 1</span></strong>
+      <div class="competition-navigation">
+        <div class="competition-tabs" aria-label="Competiciones">
+          <button id="leagueCompetitionTab" type="button" class="active" aria-pressed="true">Liga</button>
+          <button id="cupCompetitionTab" type="button" aria-pressed="false">Copa</button>
+        </div>
+        <div class="nav-links" aria-label="Secciones de la competición">
+          <a href="#campeonato" id="championshipLink">Campeonato</a>
+          <a href="#participantes" id="participantsLink">Participantes</a>
+          <a href="#reglamento" id="rulesLink">Reglamento</a>
+          <a href="#historico" id="historyLink">Histórico</a>
+        </div>
+      </div>
+      <div class="trophy-frame">
+        <img src="assets/trofeo-recortado.webp" alt="Trofeo del Campeonato de España">
       </div>
     </div>
-
-  
-      <div class="trophy-frame">
-        <img src="assets/trofeo-recortado.webp" alt="Trofeo Liga de Campeones">
-      </div>
   </header>
 
   <main>
@@ -59,11 +64,26 @@
     </div>
   </section>
 
+  <section id="cupPage" class="app-page cup-page" hidden>
+    <div class="container cup-shell">
+      <div class="cup-toolbar">
+        <p>Desliza el cuadro hacia la derecha para seguir cada eliminatoria hasta la final.</p>
+        <div class="cup-jump-links" aria-label="Saltar por el cuadro">
+          <button type="button" data-cup-jump="start">Rondas previas</button>
+          <button type="button" data-cup-jump="end">Fase final</button>
+        </div>
+      </div>
+      <div class="cup-bracket-scroll" id="cupBracketScroll" tabindex="0" aria-label="Cuadro completo de Copa, desplazable horizontalmente">
+        <div class="cup-bracket" id="cupBracket"></div>
+      </div>
+    </div>
+  </section>
+
   <section id="participantsPage" class="app-page" hidden>
     <div class="page-hero participants-hero">
       <div class="container">
         <p class="eyebrow">CAMPEONATO DE ESPAÑA</p>
-        <h2>Participantes</h2>
+        <h2 id="participantsPageTitle">Participantes de Liga</h2>
       </div>
     </div>
     <div class="container participants-page-content">
@@ -76,11 +96,11 @@
     <div class="page-hero rules-hero">
       <div class="container">
         <p class="eyebrow">CAMPEONATO DE ESPAÑA</p>
-        <h2>Reglamento</h2>
+        <h2 id="rulesPageTitle">Reglamento de Liga</h2>
       </div>
     </div>
     <div class="container rules-content">
-      <section id="reglamento" class="section">
+      <section id="leagueRules" class="section competition-rules">
       <div class="section-heading">
         <div><p class="eyebrow dark">Normativa</p><h2>Reglamento del campeonato</h2></div>
         <p class="section-note">Sistema inspirado en la clasificación de la Primera División española, adaptado al juego Campeones.</p>
@@ -98,10 +118,10 @@
           <p>La puntuación será de <strong>3 puntos por victoria, 1 por empate y 0 por derrota</strong>.</p>
           <p>En caso de empate a puntos, se aplicarán por orden los siguientes criterios:</p>
           <ol>
-            <li><strong>Puntos en los enfrentamientos directos:</strong> puntos totales obtenidos en los partidos disputados entre los equipos implicados.</li>
-            <li><strong>Goal average particular:</strong> si continúa el empate, se utilizará la diferencia entre los goles a favor y en contra en los enfrentamientos directos.</li>
-            <li><strong>Goal average general:</strong> si el empate persiste, se utilizará la diferencia global de goles en el conjunto de la Liga.</li>
-            <li><strong>Desempate de BGA:</strong> como último criterio, se respetará el desempate realizado por BGA, basado en el ELO de los rivales vencidos.</li>
+            <li><strong>Puntos en los enfrentamientos directos:</strong> suma de los puntos obtenidos en los partidos disputados entre todos los equipos empatados (incluidos enfrentamientos repetidos, caso de haberlos).</li>
+            <li><strong>Goal average particular:</strong> diferencia de goles acumulada únicamente en los enfrentamientos directos.</li>
+            <li><strong>Goal average general:</strong> diferencia global de goles en la Liga.</li>
+            <li><strong>Desempate de BGA:</strong> orden establecido por BGA según el ELO de los rivales vencidos.</li>
           </ol>
           <p class="rule-alert"><strong>Importante:</strong> por este sistema de desempate, la clasificación mostrada por los torneos de BGA puede diferir de la clasificación final oficial de esta Liga.</p>
         </div></article>
@@ -135,20 +155,80 @@
           <p>En caso de bajas, tanto temporales como definitivas, los huecos en las divisiones se rellenarán <strong>evitando el descenso del jugador o jugadora mejor clasificado entre quienes hubieran descendido</strong>.</p>
         </div></article>
 
-        <article><span class="rule-no">08</span><div>
-          <h3>Copa y Supercopa</h3>
-          <p>Además de la Liga, se disputarán torneos de <strong>Copa</strong>, mediante eliminación sencilla y con la opción de ida y vuelta activada.</p>
-          <p>También se disputará la <strong>Supercopa</strong>, mediante un enfrentamiento a ida y vuelta entre el ganador de la Liga y el ganador de la Copa.</p>
-        </div></article>
       </div>
-    </section>
+      </section>
+
+      <section id="cupRules" class="section competition-rules" hidden>
+        <div class="regulation">
+          <article><span class="rule-no">01</span><div>
+            <h3>Participantes y formato de la competición</h3>
+            <p>La Copa estará formada por un máximo de <strong>64 participantes</strong> y se disputará mediante <strong>eliminatorias directas</strong>. Cada eliminatoria determinará qué equipo pasa a la ronda siguiente, hasta llegar a la final y proclamar al campeón de Copa.</p>
+          </div></article>
+
+          <article><span class="rule-no">02</span><div>
+            <h3>Emparejamientos y pases directos</h3>
+            <p>Los emparejamientos serán establecidos por <strong>Board Game Arena (BGA)</strong> en función del ELO de los participantes, enfrentando inicialmente a los jugadores con mayor ELO con los de menor ELO.</p>
+            <p>Cuando el número de participantes no permita completar el cuadro, los jugadores con mayor ELO recibirán un <strong>pase directo</strong> a la siguiente ronda.</p>
+          </div></article>
+
+          <article><span class="rule-no">03</span><div>
+            <h3>Eliminatorias a ida y vuelta</h3>
+            <p>Cada eliminatoria se disputará mediante la modalidad de <strong>ida y vuelta</strong> habilitada por BGA, en la que los dos encuentros forman parte de una única partida de BGA.</p>
+            <p>Cada equipo actuará como local en uno de los dos partidos de la eliminatoria, con la carta de afición y las ventajas asociadas establecidas por BGA.</p>
+            <p>Al finalizar el primer encuentro, se continuará con un segundo partido, que comenzará desde cero, utilizando nuevamente el mazo original y sin conservar los fichajes, la motivación, el cansancio ni los demás efectos acumulados durante el partido de ida.</p>
+          </div></article>
+
+          <article><span class="rule-no">04</span><div>
+            <h3>Clasificación para la siguiente ronda</h3>
+            <p>Se clasificará para la siguiente ronda el equipo que haya obtenido el mejor <strong>resultado global</strong> después de disputar los partidos de ida y vuelta.</p>
+            <p>Si al finalizar el segundo partido el resultado global continúa empatado, se jugará una <strong>prórroga</strong>. Si el empate persiste después de la prórroga, se considerará clasificado al equipo que BGA señale como ganador de la eliminatoria.</p>
+          </div></article>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="historyPage" class="app-page history-page" hidden>
+    <div class="page-hero history-hero">
+      <div class="container">
+        <p class="eyebrow">CAMPEONATO DE ESPAÑA</p>
+        <h2 id="historyPageTitle">Histórico de Liga</h2>
+      </div>
+    </div>
+    <div class="container history-page-content">
+      <div id="historySeasonControls" class="history-season-controls" hidden>
+        <label for="seasonSelect"><span>Temporada</span><select id="seasonSelect" aria-label="Seleccionar temporada archivada"></select></label>
+      </div>
+      <div id="historyEmpty" class="history-empty">Todavía no hay temporadas archivadas.</div>
+      <section id="historyLeagueContent" hidden>
+        <div id="historyDivisionTabs" class="division-tabs history-division-tabs"></div>
+        <section class="section compact-section">
+          <h2 class="content-title">Clasificación final</h2>
+          <div class="table-wrap">
+            <table id="historyStandingsTable">
+              <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="section compact-section calendar-section">
+          <h2 class="content-title">Resultados</h2>
+          <div id="historyCalendarRounds" class="calendar-rounds"></div>
+        </section>
+      </section>
+      <section id="historyCupContent" class="cup-shell history-cup-shell" hidden>
+        <p class="history-bracket-help">Desliza el cuadro hacia la derecha para consultar la Copa completa.</p>
+        <div class="cup-bracket-scroll" id="historyCupBracketScroll" tabindex="0" aria-label="Cuadro histórico de Copa, desplazable horizontalmente">
+          <div class="cup-bracket" id="historyCupBracket"></div>
+        </div>
+      </section>
     </div>
   </section>
 </main>
 
   <footer>
     <div class="container footer-inner">
-      <strong>Campeones: Oliver y Benji - Campeonato de España de Liga</strong>
+      <strong>Campeones: Oliver y Benji - Campeonato de España</strong>
       <span>Partidas disputadas en Board Game Arena</span>
     </div>
   </footer>
@@ -161,7 +241,10 @@
       <div id="chronicleBody" class="chronicle-body"></div>
     </article>
   </dialog>
-  <script src="cronicas.js?v=1.61"></script>
-  <script src="app.js?v=1.61"></script>
+  <dialog id="cupTeamDialog" class="cup-team-dialog" aria-labelledby="cupTeamDialogTitle"><div id="cupTeamDialogContent"></div></dialog>
+  <script src="cronicas.js?v=2.3"></script>
+  <script src="temporadas.js?v=2.3"></script>
+  <script src="app.js?v=2.3"></script>
+  <script src="copa.js?v=2.3"></script>
 </body>
 </html>
