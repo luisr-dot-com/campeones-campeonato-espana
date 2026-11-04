@@ -101,9 +101,11 @@
   }
 
   function card(match, archived=false) {
-    const second=match.status === "bye" ? ph("Pase directo") : match.b;
-    const stateClass=match.status === "finished" ? "done" : match.status === "live" ? "live" : match.status === "bye" ? "bye" : "";
-    return `<article class="cup-tie" data-cup-match="${match.id}"><div class="cup-tie-body"><div class="cup-team-list">${participantRow(match,match.a)}${scoreBox(match,archived)}${participantRow(match,second)}</div></div><div class="cup-status ${stateClass}">${state(match)}</div></article>`;
+    const bye=match.status === "bye";
+    const stateClass=match.status === "finished" ? "done" : match.status === "live" ? "live" : bye ? "bye" : "";
+    // Los pases directos muestran solo equipo y jugador centrados. No son un partido ni tienen marcador.
+    const contents=bye ? participantRow(match,match.a) : `${participantRow(match,match.a)}${scoreBox(match,archived)}${participantRow(match,match.b)}`;
+    return `<article class="cup-tie${bye ? " cup-tie-bye" : ""}" data-cup-match="${match.id}"><div class="cup-tie-body"><div class="cup-team-list">${contents}</div></div><div class="cup-status ${stateClass}">${state(match)}</div></article>`;
   }
 
   function renderBoard(host, rounds, archived=false) {

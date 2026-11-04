@@ -1787,3 +1787,31 @@ body[data-competition="cup"] .cup-status{min-height:14px;margin:0 9px 5px;font-s
  body[data-competition="cup"] .cup-bracket-scroll{height:calc(100dvh - 235px);min-height:300px}
  .cup-sync small{display:none}
 }
+
+/* Copa 2.0.1: pase directo = participante centrado, sin resultado duplicado. */
+body[data-competition="cup"] .cup-tie-bye .cup-tie-body{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px 9px 3px;
+}
+body[data-competition="cup"] .cup-tie-bye .cup-team-list{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-width:0;
+  width:100%;
+}
+body[data-competition="cup"] .cup-tie-bye .cup-team-row{
+  width:100%;
+  min-width:0;
+  text-align:center;
+}
+body[data-competition="cup"] .cup-tie-bye .cup-team-row .cup-participant{
+  align-items:center;
+  text-align:center;
+}
+body[data-competition="cup"] .cup-tie-bye .cup-team-name,
+body[data-competition="cup"] .cup-tie-bye .cup-player-name{
+  text-align:center;
+}
