@@ -88,7 +88,7 @@
     const classes=["cup-team-row"];
     if (!p) classes.push("empty");
     if (p?.placeholder) classes.push("placeholder");
-    if (match.winner === p) classes.push("winner");
+    if (resolvedWinner(match)?.key === p?.key) classes.push("winner");
     const inside=`<span class="cup-participant"><span class="cup-team-name">${esc(p?.team || "Plaza libre")}</span><span class="cup-player-name">${esc(p?.name || "")}</span></span>`;
     if (p && !p.placeholder) return `<button type="button" class="${classes.join(" ")}" data-cup-player="${esc(p.key)}" aria-label="Ver recorrido de ${esc(p.team)}">${inside}</button>`;
     return `<div class="${classes.join(" ")}">${inside}</div>`;
@@ -160,7 +160,8 @@
     if (!person) return;
     const cards=matches.map(match => {
       const own=match.a?.key === key ? 0 : 1,rival=own === 0 ? match.b : match.a;
-      const result=match.status === "bye" ? "Pase directo" : match.status === "live" ? "En juego" : match.winner?.key === key ? "Clasificado" : "Eliminado";
+      const winner=resolvedWinner(match);
+      const result=match.status === "bye" ? "Pase directo" : match.status === "live" ? "En juego" : match.status !== "finished" ? "Por disputar" : !winner ? "Resultado por confirmar" : winner.key === key ? "Clasificado" : "Eliminado";
       const score=match.score ? `${match.score[own]} – ${match.score[1-own]}` : match.status === "bye" ? "—" : "En curso";
       const scoreView=match.table && !archived ? `<a class="cup-history-score" href="https://boardgamearena.com/table?table=${encodeURIComponent(match.table)}" target="_blank" rel="noopener" aria-label="Abrir el partido">${score}</a>` : `<strong class="cup-history-score static">${score}</strong>`;
       return `<section class="cup-history-round"><div class="cup-history-round-head"><span>${roundNames[match.r]}</span><b>${result}</b></div><div class="cup-history-opponent">${match.status === "bye" ? "Pase directo a la ronda siguiente" : `contra <strong>${esc(rival?.team || "…")}</strong><span>${esc(rival?.name || "")}</span>`}</div><div class="cup-history-result">${scoreView}</div></section>`;
@@ -219,6 +220,15 @@
   const resolvePlayer = name => knownPlayers.get(normalizedName(name)) || aliases.get(normalizedName(name)) || null;
   const parseScore = value => value !== null && value !== undefined && /^\d+$/.test(String(value)) ? Number(value) : null;
   const hasScore = match => Array.isArray(match.score) && match.score.length === 2 && match.score.every(Number.isInteger);
+  // No confundir «sin ganador almacenado» con «eliminado».
+  // Un tanteo provisional no decide una eliminatoria: solo usar el resultado final.
+  function resolvedWinner(match) {
+    if(match.status === "bye") return match.a || null;
+    if(match.status !== "finished") return null;
+    if(hasScore(match) && match.score[0] !== match.score[1])
+      return match.score[0] > match.score[1] ? match.a : match.b;
+    return match.winner || null;
+  }
   const matchLookup = () => new Map(currentRounds.flat().filter(m=>m.table).map(m=>[String(m.table),m]));
 
   function validatedPlayerScores(match, detail) {
@@ -349,11 +359,12 @@
   function propagateKnownWinners(){
     let added=0;
     for(let r=0;r<currentRounds.length-1;r++)for(const match of currentRounds[r]){
-      if(match.status!=="finished" || !hasScore(match) || match.score[0]===match.score[1] || !match.winner) continue;
+      const winner=resolvedWinner(match);
+      if(match.status!=="finished" || !winner) continue;
       const next=currentRounds[r+1][Math.floor(match.i/2)];
       if(!next) continue;
       const side=match.i%2===0?"a":"b";
-      if(next[side]?.placeholder){next[side]=match.winner;added++;}
+      if(next[side]?.placeholder){next[side]=winner;added++;}
     }
     return added;
   }
