@@ -103,7 +103,7 @@
   function card(match, archived=false) {
     const second=match.status === "bye" ? ph("Pase directo") : match.b;
     const stateClass=match.status === "finished" ? "done" : match.status === "live" ? "live" : match.status === "bye" ? "bye" : "";
-    return `<article class="cup-tie" data-cup-match="${match.id}"><div class="cup-tie-body"><div class="cup-team-list">${participantRow(match,match.a)}${participantRow(match,second)}</div>${scoreBox(match,archived)}</div><div class="cup-status ${stateClass}">${state(match)}</div></article>`;
+    return `<article class="cup-tie" data-cup-match="${match.id}"><div class="cup-tie-body"><div class="cup-team-list">${participantRow(match,match.a)}${scoreBox(match,archived)}${participantRow(match,second)}</div></div><div class="cup-status ${stateClass}">${state(match)}</div></article>`;
   }
 
   function renderBoard(host, rounds, archived=false) {
@@ -178,6 +178,66 @@
     if ($("#cupBracket")) observer.observe($("#cupBracket"));
     if ($("#historyCupBracket")) observer.observe($("#historyCupBracket"));
   }
+  // Refresh is manual: Copa 2.0 originally contained a fixed snapshot only.
+  // Never overwrite a valid result with missing/ambiguous Worker data.
+  const CUP_WORKER = "https://campeones-bga-api.luis-rosaperez.workers.dev";
+  const CUP_STORAGE = "campeones-copa-2.0.1-results";
+  const matchLookup = () => new Map(currentRounds.flat().filter(m=>m.table).map(m=>[String(m.table),m]));
+  function applyValidatedDetail(match, detail) {
+    const players = Array.isArray(detail?.players) ? detail.players : Object.values(detail?.players || {});
+    const normalized = x => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+    const find = person => players.filter(p=>normalized(p?.name) === normalized(person?.name));
+    const a=find(match.a), b=find(match.b);
+    if (a.length !== 1 || b.length !== 1) return false;
+    const score = p => (p?.score !== null && p?.score !== undefined && /^\d+$/.test(String(p.score))) ? Number(p.score) : null;
+    const x=score(a[0]),y=score(b[0]);
+    if (x === null || y === null) return false;
+    match.score=[x,y];
+    return true;
+  }
+  function saveCupResults() {
+    try {localStorage.setItem(CUP_STORAGE,JSON.stringify({time:new Date().toISOString(),matches:currentRounds.flat().filter(m=>m.table && Array.isArray(m.score)).map(m=>({table:m.table,score:m.score}))}));}catch{}
+  }
+  function restoreCupResults() {
+    try {
+      const raw=JSON.parse(localStorage.getItem(CUP_STORAGE) || "null");
+      const byTable=matchLookup();
+      for(const item of raw?.matches || []) {
+        const m=byTable.get(String(item.table));
+        if(m && m.status !== "finished" && Array.isArray(item.score) && item.score.length === 2 && item.score.every(Number.isInteger)) m.score=item.score;
+      }
+      if(raw?.time) {const status=$("#cupSyncStatus");if(status)status.textContent=`Última consulta: ${new Date(raw.time).toLocaleString("es-ES")}`;}
+    } catch {}
+  }
+  async function refreshCup() {
+    const button=$("#refreshCupButton"), status=$("#cupSyncStatus");
+    if(button?.disabled) return;
+    if(button) {button.disabled=true;button.textContent="Actualizando…";}
+    const matches=currentRounds.flat().filter(m=>m.table && m.status === "live");
+    let success=0, valid=0;
+    try {
+      // Limit concurrency to avoid flooding BGA or exhausting Worker capacity.
+      for(let i=0;i<matches.length;i+=3){
+        await Promise.all(matches.slice(i,i+3).map(async m=>{
+          try {
+            const controller=new AbortController();
+            const timeout=setTimeout(()=>controller.abort(),18000);
+            let response;
+            try {response=await fetch(`${CUP_WORKER}/?match=${encodeURIComponent(m.table)}&refresh=1`,{signal:controller.signal,cache:"no-store"});}
+            finally {clearTimeout(timeout);}
+            if(!response.ok) return;
+            const data=await response.json(); success++;
+            if(applyValidatedDetail(m,data))valid++;
+          }catch(error){console.warn("Copa: sin detalle válido",m.table,error);}
+        }));
+      }
+      if(valid){saveCupResults();render();}
+      if(status)status.textContent=valid ? `${valid} marcador(es) verificados de ${matches.length} · ${new Date().toLocaleTimeString("es-ES")}` :
+        (success ? "Consulta realizada; BGA no facilitó marcadores verificables de los partidos en curso" : "No se pudo consultar BGA; se conservan los datos anteriores");
+    } finally {if(button){button.disabled=false;button.textContent="Actualizar datos";}}
+  }
+  restoreCupResults();
+  $("#refreshCupButton")?.addEventListener("click",refreshCup);
   window.CampeonesCopa={render,renderArchive,renderParticipants};
   render();
 })();

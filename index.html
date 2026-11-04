@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Campeones: Oliver y Benji - Campeonato de España</title>
-  <link rel="stylesheet" href="styles.css?v=2.3" />
+  <link rel="stylesheet" href="styles.css?v=2.0.1" />
 </head>
 <body>
   <header class="hero anime-hero league-hero">
@@ -67,7 +67,7 @@
   <section id="cupPage" class="app-page cup-page" hidden>
     <div class="container cup-shell">
       <div class="cup-toolbar">
-        <p>Desliza el cuadro hacia la derecha para seguir cada eliminatoria hasta la final.</p>
+        <div class="cup-sync"><button type="button" id="refreshCupButton">Actualizar datos</button><small id="cupSyncStatus" role="status" aria-live="polite">Datos de Copa guardados en esta versión · actualización manual</small></div>
         <div class="cup-jump-links" aria-label="Saltar por el cuadro">
           <button type="button" data-cup-jump="start">Rondas previas</button>
           <button type="button" data-cup-jump="end">Fase final</button>
@@ -245,6 +245,6 @@
   <script src="cronicas.js?v=2.3"></script>
   <script src="temporadas.js?v=2.3"></script>
   <script src="app.js?v=2.3"></script>
-  <script src="copa.js?v=2.3"></script>
+  <script src="copa.js?v=2.0.1"></script>
 </body>
 </html>

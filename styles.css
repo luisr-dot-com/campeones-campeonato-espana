@@ -1754,3 +1754,36 @@ body:has(.chronicle-dialog[open]){overflow:hidden}
   .competition-navigation .nav-links a{font-size:9.5px!important;padding:4px 2px!important}
   .competition-navigation .competition-tabs button{font-size:11px;padding:4px 8px!important}
 }
+
+
+/* Copa 2.0.1: contenedor expansible y tarjetas compactas horizontales. */
+body[data-competition="cup"] .cup-page{min-height:0;display:flex;flex-direction:column;padding:10px 0 12px}
+body[data-competition="cup"] .cup-page[hidden]{display:none!important}
+body[data-competition="cup"] .cup-shell{width:calc(100% - 32px);max-width:none;flex:1;min-height:0;display:flex;flex-direction:column}
+body[data-competition="cup"] .cup-toolbar{justify-content:space-between;margin:0 0 8px;flex-shrink:0}
+.cup-sync{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.cup-sync button{font-size:12px;font-weight:800;border:1px solid #b7cbd9;border-radius:6px;background:#fff;color:#165080;padding:8px 13px;cursor:pointer}
+.cup-sync button:disabled{opacity:.6;cursor:wait}
+.cup-sync small{font-size:11px;color:#59768a}
+body[data-competition="cup"] .cup-bracket-scroll{height:clamp(410px,calc(100dvh - 230px),1100px);max-height:none;flex:1;min-height:320px}
+body[data-competition="cup"] .cup-bracket{grid-template-columns:repeat(6,minmax(270px,1fr));min-width:1850px;column-gap:30px;padding:0 12px 18px}
+body[data-competition="cup"] .cup-round-slots{grid-template-rows:repeat(32,83px);row-gap:9px}
+body[data-competition="cup"] .cup-tie-body{grid-template-columns:minmax(0,1fr) 57px minmax(0,1fr);gap:6px;padding:8px 9px 3px;align-items:center}
+body[data-competition="cup"] .cup-team-list{display:contents}
+body[data-competition="cup"] .cup-team-row{min-height:36px;padding:0 2px}
+body[data-competition="cup"] .cup-team-row:nth-child(1){text-align:right}
+body[data-competition="cup"] .cup-participant{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px}
+body[data-competition="cup"] .cup-team-row:nth-child(1) .cup-participant{align-items:flex-end}
+body[data-competition="cup"] .cup-team-name{font-size:12px;font-weight:800;max-width:100%}
+body[data-competition="cup"] .cup-player-name{font-size:10.5px;font-weight:400;text-align:inherit;max-width:100%}
+body[data-competition="cup"] .cup-score-stack{grid-column:2;grid-row:1;display:flex;align-items:center;justify-content:center;gap:4px;min-height:38px;font-size:20px;background:transparent;border:0;color:#0f5aa6;white-space:nowrap}
+body[data-competition="cup"] .cup-score-stack span+span{border:0}
+body[data-competition="cup"] .cup-score-stack span+span:before{content:'–';font-size:15px;color:#9cb8cd;padding-right:4px}
+body[data-competition="cup"] .cup-score-stack.pending{color:#96a8b5}
+body[data-competition="cup"] .cup-status{min-height:14px;margin:0 9px 5px;font-size:9px;line-height:1.15}
+@media(max-width:700px){
+ body[data-competition="cup"] .cup-shell{width:calc(100% - 16px)}
+ body[data-competition="cup"] .cup-bracket{grid-template-columns:repeat(6,280px);min-width:1810px;column-gap:24px}
+ body[data-competition="cup"] .cup-bracket-scroll{height:calc(100dvh - 235px);min-height:300px}
+ .cup-sync small{display:none}
+}
