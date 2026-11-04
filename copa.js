@@ -195,69 +195,224 @@
     if ($("#cupBracket")) observer.observe($("#cupBracket"));
     if ($("#historyCupBracket")) observer.observe($("#historyCupBracket"));
   }
-  // Refresh is manual: Copa 2.0 originally contained a fixed snapshot only.
-  // Never overwrite a valid result with missing/ambiguous Worker data.
+  // Actualizacion manual de Copa. Nunca se consulta BGA al abrir la pagina.
+  // Un partido terminado solo se consolida tras disponer de dos goles por jugador.
   const CUP_WORKER = "https://campeones-bga-api.luis-rosaperez.workers.dev";
   const CUP_STORAGE = "campeones-copa-2.0.1-results";
+  // Torneo de Copa acreditado por el organizador: https://es.boardgamearena.com/tournament?id=617974
+  // Se permite una sobrescritura explicita para entornos de prueba.
+  const CUP_TOURNAMENT_ID = "617974";
+  const configuredTournamentId = () => {
+    const value=String(window.CAMPEONES_COPA_TOURNAMENT_ID || CUP_TOURNAMENT_ID).trim();
+    return /^\d+$/.test(value) ? value : null;
+  };
+  const normalized = value => String(value ?? "").normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const normalizedName = value => normalized(value);
+  const knownPlayers = new Map(Object.values(P).map(person => [normalizedName(person.name),person]));
+  // Alias acreditados entre BGA y la Copa. No se deducen equipos por orden.
+  const aliases = new Map([
+    ["serranitodeluxe",P.serranito],["calajan",P.calajan],
+    ["murciegalo100",P.murciegalo],["jbcaturla",P.jbcat],
+    ["radikalgyn",P.radikal]
+  ].map(([name,person]) => [normalizedName(name),person]));
+  const resolvePlayer = name => knownPlayers.get(normalizedName(name)) || aliases.get(normalizedName(name)) || null;
+  const parseScore = value => value !== null && value !== undefined && /^\d+$/.test(String(value)) ? Number(value) : null;
+  const hasScore = match => Array.isArray(match.score) && match.score.length === 2 && match.score.every(Number.isInteger);
   const matchLookup = () => new Map(currentRounds.flat().filter(m=>m.table).map(m=>[String(m.table),m]));
-  function applyValidatedDetail(match, detail) {
-    const players = Array.isArray(detail?.players) ? detail.players : Object.values(detail?.players || {});
-    const normalized = x => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
-    const find = person => players.filter(p=>normalized(p?.name) === normalized(person?.name));
+
+  function validatedPlayerScores(match, detail) {
+    // La misma fuente que usa Liga: detail.players con goles vinculados
+    // al jugador. Nunca emparejamos Nankatsu/Toho por orden ni por tanteo.
+    const source=detail?.players ?? detail?.data?.players;
+    const players=Array.isArray(source) ? source : source && typeof source === "object" ? Object.values(source) : [];
+    const find=person => players.filter(p => normalizedName(p?.name) === normalizedName(person?.name));
     const a=find(match.a), b=find(match.b);
-    if (a.length !== 1 || b.length !== 1) return false;
-    const score = p => (p?.score !== null && p?.score !== undefined && /^\d+$/.test(String(p.score))) ? Number(p.score) : null;
-    const x=score(a[0]),y=score(b[0]);
-    if (x === null || y === null) return false;
-    match.score=[x,y];
+    if(a.length !== 1 || b.length !== 1) return null;
+    const x=parseScore(a[0]?.score),y=parseScore(b[0]?.score);
+    if(x !== null && y !== null) return [x,y];
+    // Respaldo solo si el Worker acredita el equipo BGA de AMBOS jugadores.
+    // Nunca asignar goles por el orden de la lista ni por quien va ganando.
+    const teamA=String(a[0]?.team || ""),teamB=String(b[0]?.team || "");
+    if(!["Nankatsu","Toho"].includes(teamA) ||
+       !["Nankatsu","Toho"].includes(teamB) || teamA===teamB) return null;
+    const scoreByTeam=detail?.score ?? detail?.data?.score;
+    const first=parseScore(scoreByTeam?.[teamA]),second=parseScore(scoreByTeam?.[teamB]);
+    return first !== null && second !== null ? [first,second] : null;
+  }
+  function applyValidatedDetail(match, detail) {
+    const score=validatedPlayerScores(match,detail);
+    if(!score) return false;
+    match.score=score;
+    if (match.status === "finished" && score[0] !== score[1]) match.winner=score[0] > score[1] ? match.a : match.b;
     return true;
   }
   function saveCupResults() {
-    try {localStorage.setItem(CUP_STORAGE,JSON.stringify({time:new Date().toISOString(),matches:currentRounds.flat().filter(m=>m.table && Array.isArray(m.score)).map(m=>({table:m.table,score:m.score}))}));}catch{}
+    try {
+      const matches=currentRounds.flat().filter(m=>m.table && (hasScore(m) || m.status === "finished"))
+        .map(m=>({table:String(m.table),score:hasScore(m)?m.score:null,status:m.status,progress:m.progress,
+          winner:m.winner?.key || null}));
+      localStorage.setItem(CUP_STORAGE,JSON.stringify({version:2,time:new Date().toISOString(),matches}));
+    }catch(error){console.warn("Copa: no se pudo almacenar el estado",error);}
   }
   function restoreCupResults() {
     try {
-      const raw=JSON.parse(localStorage.getItem(CUP_STORAGE) || "null");
+      const raw=JSON.parse(localStorage.getItem(CUP_STORAGE)||"null");
       const byTable=matchLookup();
       for(const item of raw?.matches || []) {
         const m=byTable.get(String(item.table));
-        if(m && m.status !== "finished" && Array.isArray(item.score) && item.score.length === 2 && item.score.every(Number.isInteger)) m.score=item.score;
+        if(!m || m.status === "bye") continue;
+        if(Array.isArray(item.score) && item.score.length === 2 && item.score.every(Number.isInteger) && item.score.every(n=>n>=0)) m.score=item.score;
+        if(item.status === "finished" && hasScore(m)) m.status="finished";
+        else if(m.status !== "finished" && item.status === "live") m.status="live";
+        if(Number.isFinite(item.progress) && m.status !== "finished") m.progress=item.progress;
+        if(m.status === "finished" && hasScore(m) && m.score[0] !== m.score[1]) m.winner=m.score[0]>m.score[1]?m.a:m.b;
       }
-      if(raw?.time) {const status=$("#cupSyncStatus");if(status)status.textContent=`Última consulta: ${new Date(raw.time).toLocaleString("es-ES")}`;}
-    } catch {}
+      // No reescribir la fecha de consulta cuando solo se muestran datos locales.
+      if(raw?.time){const el=$("#cupSyncStatus");if(el)el.textContent=`Última consulta: ${new Date(raw.time).toLocaleString("es-ES")}`;}
+    }catch(error){console.warn("Copa: no se pudo recuperar la copia local",error);}
   }
-  async function refreshCup() {
-    const button=$("#refreshCupButton"), status=$("#cupSyncStatus");
+  function overviewRows(payload) {
+    const data=payload?.data ?? payload;
+    const players=new Map();
+    const ps=data?.players || [];
+    for(const [key,entry] of (Array.isArray(ps) ? ps.map((p,i)=>[String(i),p]) : Object.entries(ps))) {
+      if(typeof entry === "string") players.set(key,entry);
+      else if(entry && typeof entry === "object") {
+        const id=entry.player_id ?? entry.id ?? key;
+        const name=entry.name ?? entry.player_name ?? entry.playerName;
+        if(name) players.set(String(id),String(name));
+      }
+    }
+    const steps=data?.steps || [];
+    const list=Array.isArray(steps) ? steps : Object.values(steps);
+    const rows=[];
+    for(const [round,step] of list.entries()) {
+      const games=step?.matches ?? step?.matchs ?? step?.games ?? [];
+      const gameList=Array.isArray(games) ? games : Object.values(games);
+      for(const game of gameList){
+        const source=game?.players ?? game?.player ?? game?.participants ?? [];
+        const entries=Array.isArray(source) ? source.map((p,i)=>[String(i),p]) : Object.entries(source);
+        let names=entries.map(([key,entry])=>{
+          if(typeof entry === "string" || typeof entry === "number") return players.get(String(entry)) || (typeof entry === "string" && !/^\d+$/.test(entry) ? entry : null);
+          const nested=entry?.player && typeof entry.player === "object" ? entry.player : null;
+          const id=entry?.player_id ?? entry?.playerId ?? entry?.id ?? nested?.player_id ?? nested?.id ?? key;
+          return entry?.player_name ?? entry?.playerName ?? entry?.name ?? entry?.fullname ?? nested?.name ?? players.get(String(id)) ?? null;
+        }).filter(Boolean);
+        // BGA tambien puede representar ambos jugadores como campos separados.
+        if(names.length!==2){
+          const ids=[game?.player1_id ?? game?.player1Id ?? game?.player_1_id ?? game?.player1,
+            game?.player2_id ?? game?.player2Id ?? game?.player_2_id ?? game?.player2];
+          if(ids.every(v=>v!==null && v!==undefined)){
+            names=ids.map(v=> typeof v==="object" ?
+              (v.player_name ?? v.playerName ?? v.name ?? players.get(String(v.player_id ?? v.id))) :
+              (players.get(String(v)) || (typeof v==="string" && !/^\d+$/.test(v) ? v : null))).filter(Boolean);
+          }
+        }
+        if(names.length!==2) continue;
+        const a=resolvePlayer(names[0]),b=resolvePlayer(names[1]);
+        if(!a || !b || a.key===b.key) continue;
+        const table=game?.tableId ?? game?.table_id ?? game?.table;
+        const statusText=String(game?.status ?? "").toLowerCase();
+        const tableText=String(game?.tableStatus ?? game?.table_status ?? "").toLowerCase();
+        const finished=/finished|complete|archive|ended/.test(`${statusText} ${tableText}`);
+        const cancelled=/cancel|void/.test(`${statusText} ${tableText}`);
+        const progression=Number(game?.tableProgression ?? game?.table_progression ?? game?.progression);
+        rows.push({round,a,b,table:table ? String(table) : null,
+          status:cancelled?"pending":finished?"finished":(table && Number.isFinite(progression) && progression>0)?"live":"pending",
+          progress:Number.isFinite(progression) && progression>=0 ? progression : null});
+      }
+    }
+    return rows;
+  }
+  function synchronizeOverview(rows) {
+    // Actualizar solo una mesa o pareja univoca presente en el cuadro.
+    // Sin la correspondencia del torneo no se inventan posiciones de ronda.
+    let changed=0, unplaced=0;
+    const lookup=matchLookup();
+    for(const item of rows) {
+      let match=item.table ? lookup.get(item.table) : null;
+      if(!match){
+        const possible=currentRounds.flat().filter(m=>m.status!=="bye" && m.a && m.b && !m.a.placeholder && !m.b.placeholder
+          && [m.a.key,m.b.key].sort().join("|")===[item.a.key,item.b.key].sort().join("|"));
+        if(possible.length===1) match=possible[0];
+      }
+      if(!match){unplaced++;continue;}
+      if(item.table && match.table && String(match.table)!==item.table) {unplaced++;continue;}
+      if(item.table){match.table=item.table;lookup.set(item.table,match);}
+      if(match.status!=="finished" && item.status!=="pending") match.status=item.status;
+      if(match.status!=="finished" && item.progress!==null) match.progress=item.progress;
+      changed++;
+    }
+    return {changed,unplaced};
+  }
+  function propagateKnownWinners(){
+    let added=0;
+    for(let r=0;r<currentRounds.length-1;r++)for(const match of currentRounds[r]){
+      if(match.status!=="finished" || !hasScore(match) || match.score[0]===match.score[1] || !match.winner) continue;
+      const next=currentRounds[r+1][Math.floor(match.i/2)];
+      if(!next) continue;
+      const side=match.i%2===0?"a":"b";
+      if(next[side]?.placeholder){next[side]=match.winner;added++;}
+    }
+    return added;
+  }
+  async function cupFetch(url){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),20000);
+    try{
+      const response=await fetch(url,{signal:controller.signal,cache:"no-store"});
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+      const json=await response.json();
+      if(String(json?.status)==="0") throw new Error(json?.error || "El Worker no ha podido recuperar datos");
+      return json;
+    }finally{clearTimeout(timer);}
+  }
+  async function refreshCup(){
+    const button=$("#refreshCupButton"),status=$("#cupSyncStatus");
     if(button?.disabled) return;
-    if(button) {button.disabled=true;button.textContent="Actualizando…";}
-    const matches=currentRounds.flat().filter(m=>m.table && m.status === "live");
-    let success=0, valid=0;
+    if(button){button.disabled=true;button.textContent="Actualizando…";}
+    let fromOverview=0,unplaced=0,checked=0,valid=0,errors=0;
     try {
-      // Limit concurrency to avoid flooding BGA or exhausting Worker capacity.
-      for(let i=0;i<matches.length;i+=3){
-        await Promise.all(matches.slice(i,i+3).map(async m=>{
-          try {
-            const controller=new AbortController();
-            const timeout=setTimeout(()=>controller.abort(),18000);
-            let response;
-            try {response=await fetch(`${CUP_WORKER}/?match=${encodeURIComponent(m.table)}&refresh=1`,{signal:controller.signal,cache:"no-store"});}
-            finally {clearTimeout(timeout);}
-            if(!response.ok) return;
-            const data=await response.json(); success++;
-            if(applyValidatedDetail(m,data)) valid++;
-            else console.info("Copa: el Worker no devuelve dos marcadores de jugador verificables para la mesa",m.table);
-          }catch(error){console.warn("Copa: sin detalle válido",m.table,error);}
+      const tournamentId=configuredTournamentId();
+      if(tournamentId){
+        try{
+          const overview=await cupFetch(`${CUP_WORKER}/?id=${encodeURIComponent(tournamentId)}&includeElo=0&refresh=1`);
+          const rows=overviewRows(overview);
+          if(!rows.length) throw new Error("La respuesta no contiene eliminatorias identificables");
+          const summary=synchronizeOverview(rows);
+          fromOverview=summary.changed;unplaced=summary.unplaced;
+        }catch(error){errors++;console.warn("Copa: fallo al obtener el cuadro del torneo",error);}
+      }
+      const matches=currentRounds.flat().filter(m=>m.table && m.status!=="bye" &&
+        !(m.status==="finished" && hasScore(m)));
+      // Dos mesas concurrentes, igual que Liga. No tocar resultados finalizados ya validados.
+      for(let i=0;i<matches.length;i+=2){
+        await Promise.all(matches.slice(i,i+2).map(async match=>{
+          try{
+            const detail=await cupFetch(`${CUP_WORKER}/?match=${encodeURIComponent(match.table)}${match.status==="finished"?"&archived=1":""}&refresh=1`);
+            checked++;
+            if(applyValidatedDetail(match,detail)) valid++;
+          }catch(error){errors++;console.warn("Copa: error al consultar mesa",match.table,error);}
         }));
       }
-      if(valid){saveCupResults();render();}
-      if(status)status.textContent=valid
-        ? `${valid} marcador(es) recibidos de ${matches.length} mesas · ${new Date().toLocaleTimeString("es-ES")} · El cuadro completo no se sincroniza aún`
-        : (success ? "Sin marcadores parciales comprobables; el cuadro sigue siendo una instantánea"
-                   : "No se pudo consultar BGA; se conservan los datos anteriores");
-    } finally {if(button){button.disabled=false;button.textContent="Actualizar datos";}}
+      const propagated=propagateKnownWinners();
+      if(valid || fromOverview || propagated){saveCupResults();render();}
+      if(status) {
+        const note=`${valid} marcador(es) verificados; ${fromOverview} partido(s) vinculados al cuadro`;
+        const limitations=[];
+        if(!tournamentId) limitations.push("sin ID de torneo configurado");
+        if(unplaced) limitations.push(`${unplaced} emparejamiento(s) por ubicar`);
+        if(errors) limitations.push(`${errors} consulta(s) fallidas`);
+        if(!valid && !fromOverview) limitations.push("se conservan los datos anteriores");
+        status.textContent=`${note} · ${new Date().toLocaleTimeString("es-ES")}${limitations.length?` · ${limitations.join("; ")}`:""}`;
+      }
+    }finally{if(button){button.disabled=false;button.textContent="Actualizar datos";}}
   }
   restoreCupResults();
+  propagateKnownWinners();
   $("#refreshCupButton")?.addEventListener("click",refreshCup);
+  window.CampeonesCopaDebug={overviewRows,validatedPlayerScores,synchronizeOverview,refreshCup};
   window.CampeonesCopa={render,renderArchive,renderParticipants};
   render();
 })();
