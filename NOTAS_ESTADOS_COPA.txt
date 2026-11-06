@@ -1,0 +1,11 @@
+CAMPEONES 2.0.1 — Etiquetas de estado de Copa
+
+Se elimina la presentación de porcentajes de progreso del cuadro de Copa.
+Estados permitidos: Pase directo, Sin comenzar, Ida · 1.ª parte, Ida · 2.ª parte, Vuelta · 1.ª parte, Vuelta · 2.ª parte, Prórroga y Finalizado.
+
+La fase no puede deducirse de tableProgression. La web consulta el campo deportivo opcional "sportsState" ya publicado en ?match. Se muestra "—" para partidos en curso sin fase acreditada. No representa un noveno estado deportivo.
+
+Contrato JSON requerido para ?match cuando exista estado válido:
+"sportsState": {"leg":1,"half":1,"overtimeRound":0}
+
+La web sigue usando el marcador de detail.players y NO usa los goles del nuevo extractor. La fase se valida solo con esos tres campos (sin exigir tableId ni legs). El Worker conserva source/live/final, sin modificar la fuente visible del marcador.

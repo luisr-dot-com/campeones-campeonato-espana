@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Campeones: Oliver y Benji - Campeonato de España</title>
-  <link rel="stylesheet" href="styles.css?v=2.0.1" />
+  <link rel="stylesheet" href="styles.css?v=2.0.1-compacto" />
 </head>
 <body>
   <header class="hero anime-hero league-hero">
@@ -68,13 +68,16 @@
     <div class="container cup-shell">
       <div class="cup-toolbar">
         <div class="cup-sync"><button type="button" id="refreshCupButton">Actualizar datos</button><small id="cupSyncStatus" role="status" aria-live="polite">Datos de Copa guardados en esta versión · actualización manual</small></div>
-        <div class="cup-jump-links" aria-label="Saltar por el cuadro">
-          <button type="button" data-cup-jump="start">Rondas previas</button>
-          <button type="button" data-cup-jump="end">Fase final</button>
-        </div>
+
       </div>
-      <div class="cup-bracket-scroll" id="cupBracketScroll" tabindex="0" aria-label="Cuadro completo de Copa, desplazable horizontal y verticalmente">
-        <div class="cup-bracket" id="cupBracket"></div>
+      <div class="cup-bracket-stage">
+        <button type="button" class="cup-rounds-toggle" id="cupRoundsToggle" aria-expanded="false" aria-controls="cupBracket" aria-label="Mostrar rondas anteriores" title="Mostrar rondas anteriores">
+          <span class="cup-rounds-toggle-arrow" aria-hidden="true">&#x276E;</span>
+          <span class="cup-rounds-toggle-label">Rondas anteriores</span>
+        </button>
+        <div class="cup-bracket-scroll" id="cupBracketScroll" tabindex="0" aria-label="Cuadro de Copa, cuartos de final, semifinales y final; las rondas anteriores pueden desplegarse">
+          <div class="cup-bracket cup-bracket-compact" id="cupBracket"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -245,6 +248,6 @@
   <script src="cronicas.js?v=2.3"></script>
   <script src="temporadas.js?v=2.3"></script>
   <script src="app.js?v=2.3"></script>
-  <script src="copa.js?v=2.0.1-r4"></script>
+  <script src="copa.js?v=2.02-sports-state"></script>
 </body>
 </html>

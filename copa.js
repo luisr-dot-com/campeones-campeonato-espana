@@ -82,7 +82,15 @@
     })));
   }
 
-  const state = match => match.status === "bye" ? "Pase directo" : match.status === "finished" ? "Finalizado" : match.status === "live" ? `En juego${match.progress === null ? "" : ` · ${match.progress}%`}` : "Por disputar";
+  // La fase de Copa procede SOLO del estado deportivo directo acreditado por BGA.
+  // El marcador visible continúa usando la fuente histórica durante los 7 días.
+  const state = match => {
+    if (match.status === "bye") return "Pase directo";
+    if (match.status === "finished") return "Finalizado";
+    if (match.status === "pending") return "Sin comenzar";
+    // Si la API todavía no expone la fase, no se inventa a partir del porcentaje.
+    return match.sportsPhase || "—";
+  };
 
   function participantRow(match,p) {
     const classes=["cup-team-row"];
@@ -108,15 +116,33 @@
     return `<article class="cup-tie${bye ? " cup-tie-bye" : ""}" data-cup-match="${match.id}"><div class="cup-tie-body"><div class="cup-team-list">${contents}</div></div><div class="cup-status ${stateClass}">${state(match)}</div></article>`;
   }
 
+  // La Copa actual abre por defecto solo cuartos, semifinales y final.
+  // El historico conserva su cuadro y comportamiento completos.
+  let earlierRoundsExpanded = false;
+
   function renderBoard(host, rounds, archived=false) {
     if (!host) return;
     if (!rounds.length) {host.innerHTML='<div class="cup-archive-empty">El cuadro histórico de esta temporada todavía no está disponible.</div>';return;}
-    host.innerHTML=`<svg class="cup-connectors" aria-hidden="true"></svg>${rounds.map((round,r) => {const span=2**r;return `<section class="cup-round" data-cup-round="${r}"><div class="cup-round-title">${roundNames[r]}</div><div class="cup-round-slots">${round.map((match,i) => `<div class="cup-match-slot" style="grid-row:${1+i*span}/span ${span}">${card(match,archived)}</div>`).join("")}</div></section>`;}).join("")}`;
+    const compact = !archived && !earlierRoundsExpanded;
+    const firstRound = compact ? Math.max(0, rounds.length - 3) : 0;
+    host.classList.toggle("cup-bracket-compact", compact);
+    host.innerHTML=`<svg class="cup-connectors" aria-hidden="true"></svg>${rounds.slice(firstRound).map((round,offset) => {
+      const r=firstRound+offset;
+      const span=2**offset;
+      return `<section class="cup-round" data-cup-round="${r}"><div class="cup-round-title">${roundNames[r]}</div><div class="cup-round-slots">${round.map((match,i) => `<div class="cup-match-slot" style="grid-row:${1+i*span}/span ${span}">${card(match,archived)}</div>`).join("")}</div></section>`;
+    }).join("")}`;
     requestAnimationFrame(() => drawLines(host));
   }
 
   function render() {
     renderBoard($("#cupBracket"), currentRounds, false);
+    const toggle = $("#cupRoundsToggle");
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", String(earlierRoundsExpanded));
+      toggle.setAttribute("aria-label", earlierRoundsExpanded ? "Ocultar rondas anteriores" : "Mostrar rondas anteriores");
+      toggle.title = earlierRoundsExpanded ? "Ocultar rondas anteriores" : "Mostrar rondas anteriores";
+      toggle.classList.toggle("expanded", earlierRoundsExpanded);
+    }
   }
 
   function renderArchive(host=$("#historyCupBracket")) {
@@ -173,20 +199,14 @@
 
   document.addEventListener("click",event => {
     const playerButton=event.target.closest("[data-cup-player]");if (playerButton) showTeam(playerButton.dataset.cupPlayer);
-    const jump=event.target.closest("[data-cup-jump]");
-    if (jump) {
+    if (event.target.closest("#cupRoundsToggle")) {
+      earlierRoundsExpanded = !earlierRoundsExpanded;
+      render();
       const scroll=$("#cupBracketScroll");
-      const finalCard=$("#cupBracket [data-cup-match=\"C5-0\"]");
       if (scroll) {
-        const isFinal=jump.dataset.cupJump === "end";
-        // Al seleccionar Fase final, centrar la tarjeta también en vertical.
-        // No depender de un número de píxeles fijo: la altura es adaptable.
-        const top=isFinal && finalCard
-          ? finalCard.getBoundingClientRect().top-scroll.getBoundingClientRect().top+scroll.scrollTop
-            - (scroll.clientHeight-finalCard.offsetHeight)/2
-          : 0;
-        scroll.scrollTo({left:isFinal ? scroll.scrollWidth-scroll.clientWidth : 0,
-          top:Math.max(0,top),behavior:"smooth"});
+        // La vista compacta vuelve siempre a cuartos/semis/final.
+        // En expandido se empieza por las eliminatorias anteriores.
+        scroll.scrollTo({left:0,top:0,behavior:"instant"});
       }
     }
     if (event.target.closest("#closeCupTeamDialog")) $("#cupTeamDialog")?.close();
@@ -249,6 +269,25 @@
     const scoreByTeam=detail?.score ?? detail?.data?.score;
     const first=parseScore(scoreByTeam?.[teamA]),second=parseScore(scoreByTeam?.[teamB]);
     return first !== null && second !== null ? [first,second] : null;
+  }
+  function phaseFromVerifiedSports(match, detail) {
+    // Contrato real del Worker: solo leg, half y overtimeRound.
+    // El marcador sigue procediendo de detail.players (metodo historico).
+    const sports=detail?.sportsState;
+    if(!sports || typeof sports!=="object" || Array.isArray(sports)) return null;
+    const {leg,half,overtimeRound}=sports;
+    if(![1,2].includes(leg) || ![1,2].includes(half) ||
+       !Number.isSafeInteger(overtimeRound) || overtimeRound<0) return null;
+    if(overtimeRound>0) return "Prórroga";
+    return `${leg===1 ? "Ida" : "Vuelta"} · ${half===1 ? "1.ª" : "2.ª"} parte`;
+  }
+  function applySportsPhase(match, detail) {
+    if(match.status==="bye" || match.status==="finished") return false;
+    const phase=phaseFromVerifiedSports(match,detail);
+    // Si el Worker devuelve null o datos incompletos, no conservar fases antiguas.
+    if(match.sportsPhase===phase) return false;
+    match.sportsPhase=phase;
+    return true;
   }
   function applyValidatedDetail(match, detail) {
     const score=validatedPlayerScores(match,detail);
@@ -383,7 +422,7 @@
     const button=$("#refreshCupButton"),status=$("#cupSyncStatus");
     if(button?.disabled) return;
     if(button){button.disabled=true;button.textContent="Actualizando…";}
-    let fromOverview=0,unplaced=0,checked=0,valid=0,errors=0;
+    let fromOverview=0,unplaced=0,checked=0,valid=0,phaseChanged=0,errors=0;
     try {
       const tournamentId=configuredTournamentId();
       if(tournamentId){
@@ -401,14 +440,17 @@
       for(let i=0;i<matches.length;i+=2){
         await Promise.all(matches.slice(i,i+2).map(async match=>{
           try{
-            const detail=await cupFetch(`${CUP_WORKER}/?match=${encodeURIComponent(match.table)}${match.status==="finished"?"&archived=1":""}&refresh=1`);
+            const detail=await cupFetch(`${CUP_WORKER}/?match=${encodeURIComponent(match.table)}${match.status==="finished"?"&archived=1":""}&retry=1`);
             checked++;
+            // La fase se lee separadamente del marcador; no lo sustituye.
+            if(applySportsPhase(match,detail)) phaseChanged++;
             if(applyValidatedDetail(match,detail)) valid++;
           }catch(error){errors++;console.warn("Copa: error al consultar mesa",match.table,error);}
         }));
       }
       const propagated=propagateKnownWinners();
-      if(valid || fromOverview || propagated){saveCupResults();render();}
+      if(valid || fromOverview || propagated) saveCupResults();
+      if(valid || fromOverview || propagated || phaseChanged) render();
       if(status) {
         const note=`${valid} marcador(es) verificados; ${fromOverview} partido(s) vinculados al cuadro`;
         const limitations=[];
