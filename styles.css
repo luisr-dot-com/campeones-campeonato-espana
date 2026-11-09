@@ -1,9 +1,4 @@
-@font-face{font-family:"Bebas Neue";font-style:normal;font-weight:400;font-display:swap;src:url("assets/fonts/bebas-neue-400.ttf") format("truetype")}
-@font-face{font-family:Inter;font-style:normal;font-weight:400;font-display:swap;src:url("assets/fonts/inter-400.ttf") format("truetype")}
-@font-face{font-family:Inter;font-style:normal;font-weight:500;font-display:swap;src:url("assets/fonts/inter-500.ttf") format("truetype")}
-@font-face{font-family:Inter;font-style:normal;font-weight:600;font-display:swap;src:url("assets/fonts/inter-600.ttf") format("truetype")}
-@font-face{font-family:Inter;font-style:normal;font-weight:700;font-display:swap;src:url("assets/fonts/inter-700.ttf") format("truetype")}
-@font-face{font-family:Inter;font-style:normal;font-weight:800;font-display:swap;src:url("assets/fonts/inter-800.ttf") format("truetype")}
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap");
 
 :root{
   --ink:#10202f;
@@ -1834,3 +1829,57 @@ body[data-competition="cup"] .cup-bracket-scroll{
     max-height:none;
   }
 }
+
+
+/* 2.0.1: cuadro de Copa reducido por defecto a cuartos, semifinales y final.
+   Se mantiene el desplazamiento tactil en la vista de todas las rondas. */
+body[data-competition="cup"] .cup-bracket-stage{
+  display:grid;grid-template-columns:36px minmax(0,1fr);align-items:stretch;
+  min-width:0;width:100%;
+}
+body[data-competition="cup"] .cup-rounds-toggle{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  gap:12px;padding:8px 3px;border:1px solid #c5d7e3;border-right:0;
+  border-radius:9px 0 0 9px;background:#dce9f1;color:#21577d;
+  font:inherit;font-size:11px;font-weight:800;cursor:pointer;
+}
+body[data-competition="cup"] .cup-rounds-toggle:hover,
+body[data-competition="cup"] .cup-rounds-toggle:focus-visible{background:#c8dfed;outline-offset:2px}
+body[data-competition="cup"] .cup-rounds-toggle-arrow{font-size:21px;line-height:1;transition:transform .2s}
+body[data-competition="cup"] .cup-rounds-toggle.expanded .cup-rounds-toggle-arrow{transform:rotate(180deg)}
+body[data-competition="cup"] .cup-rounds-toggle-label{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
+body[data-competition="cup"] .cup-bracket-stage .cup-bracket-scroll{min-width:0;border-left:1px solid #d6e1ea}
+body[data-competition="cup"] .cup-bracket-compact{
+  grid-template-columns:repeat(3,minmax(0,1fr));min-width:0;width:100%;
+  column-gap:clamp(12px,2vw,28px);padding:0 clamp(8px,1.2vw,16px) 12px;
+}
+body[data-competition="cup"] .cup-bracket-compact .cup-round-slots{
+  grid-template-rows:repeat(4,minmax(94px,1fr));row-gap:12px;
+}
+body[data-competition="cup"] .cup-bracket-stage:has(.cup-bracket-compact) .cup-bracket-scroll{
+  height:auto;max-height:none;min-height:0;flex:none;overflow-x:auto;overflow-y:visible;
+}
+body[data-competition="cup"] .cup-bracket-compact .cup-match-slot{min-height:0}
+/* Ambos trofeos permanecen en la misma caja, sin recortes ni cambios de escala por CSS. */
+.league-hero .trophy-frame #competitionTrophy{
+  display:block!important;width:100%!important;height:100%!important;
+  object-fit:contain!important;object-position:center center!important;
+  transform:none!important;border-radius:0!important;
+}
+@media(max-width:820px){
+  body[data-competition="cup"] .cup-bracket-compact{
+    grid-template-columns:repeat(3,270px);min-width:858px;column-gap:18px;
+  }
+  body[data-competition="cup"] .cup-bracket-stage:has(.cup-bracket-compact) .cup-bracket-scroll{
+    overflow-x:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;
+  }
+}
+@media(max-width:480px){
+  body[data-competition="cup"] .cup-bracket-stage{grid-template-columns:30px minmax(0,1fr)}
+  body[data-competition="cup"] .cup-rounds-toggle-label{font-size:10px}
+}
+
+/* 2.0.3: misma presentación de datos guardados que Liga. */
+body[data-competition="cup"] .cup-sync{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+body[data-competition="cup"] .cup-sync small{display:block;font-size:11px;color:#59768a;padding-left:6px}
+body[data-competition="cup"] .cup-rounds-toggle.expanded .cup-rounds-toggle-arrow{transform:none}

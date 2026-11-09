@@ -1,0 +1,167 @@
+CAMPEONES — HISTORIAL Y NOTAS DE REVISION (distribución web 2.0.3)
+
+2.0.3: reparación de resultados oficiales de Copa; empates con clasificación oficial acreditada por el torneo sin alterar goles; conservación de sportsState; navegación dinámica; fecha de guardado tipo Liga; limpieza de paquete.
+
+
+===== ESTADO_RESPALDO_v2.0.1.txt =====
+CAMPEONES - WEB v2.0.1 - COPIA COMPLETA PARA RESPALDO
+Fecha: 2026-11-04
+Origen: Revisión 6, con trofeo de Copa dorado aprobado.
+
+CONTENIDO
+Todos los archivos de la web tal y como estaban en la Revisión 6.
+No se ha incorporado el rediseño general de cabecera previsto para v2.1.
+
+ESTADO DE VALIDACIÓN
+- Diseño puntos 4-8: validado visualmente por el usuario.
+- Trofeos puntos 1-2: archivo SVG aprobado e incluido; pendiente cualquier verificación adicional en navegador.
+- Resultados Copa: el caso Banana FC 5-4 SAN FRANCIS y la etiqueta CLASIFICADO se han confirmado por el usuario.
+- Punto 3 (marcadores en curso): parcialmente probado; no acreditado para todos los partidos.
+- Punto 9 (actualización completa Copa desde BGA): todavía no acreditado para todas las rondas y nuevos emparejamientos.
+
+Esta copia es una versión integral de respaldo de lo desarrollado hasta aquí,
+NO una certificación de que toda la sincronización con BGA está resuelta.
+Conservarla separada antes de trabajar en v2.1.
+
+
+===== NOTAS_2.0.1_PREVIA.txt =====
+CAMPEONES 2.0.1 - VERSION PREVIA SIN DESPLIEGUE
+
+CAMBIOS INCORPORADOS:
+- Copa: ancho y altura de cuadro adaptable a la pantalla.
+- Tarjetas en una linea: equipo y jugador debajo por cada lado, marcador central.
+- Estado compacto bajo cada tarjeta, misma anchura interior.
+- Eliminado texto de ayuda horizontal.
+- Boton Actualizar datos de Copa: consulta manual al Worker de las mesas marcadas EN JUEGO en el listado existente.
+- Protege resultados: solo se actualiza un marcador cuando la respuesta incluye dos jugadores identificados por nombre y dos puntuaciones numericas. Conserva los datos anteriores si hay errores.
+- Se mantienen los selectores de rondas previa/final y el scroll interno.
+
+LIMITACIONES CONFIRMADAS:
+- El listado de Copa original esta codificado estaticamente en copa.js, incluidos porcentajes y estados. Este cambio no reconstruye el arbol completo ni trae nuevas mesas automaticamente.
+- No se ha acreditado que el Worker sirva jugadores y marcadores parciales en el formato necesario, por lo que NO puede asegurarse que el boton obtenga resultados en directo. Requiere una respuesta real de prueba y probablemente integrar el flujo correcto de eventos BGA.
+- Trofeo de Liga y Copa: ZIP de origen solo contiene una imagen de trofeo. No se reemplazo para evitar inventar un trofeo no aprobado.
+- No hay despliegue ni pruebas de integracion contra BGA; probar en entorno de desarrollo antes de publicar.
+
+AJUSTE POSTERIOR: los pases directos tienen un unico equipo y jugador centrados, no llevan marcador y muestran PASE DIRECTO solo en la banda inferior.
+
+REVISION POSTERIOR (04/11/2026):
+- El selector Fase final centra también verticalmente la tarjeta final, respetando el ancho y alto del contenedor. Rondas previas vuelve a la esquina superior izquierda.
+- Mensajes del botón de actualización más precisos: no se afirma que el cuadro esté sincronizado si solo se han consultado mesas de una instantánea fija.
+- Pendientes de integración: disponer del torneo de Copa y contrato real del Worker para partidas vivas, y segundo trofeo diferenciado. No usar como actualización definitiva.
+
+
+===== NOTAS_CAMBIOS_2.0.1_CUADRO_COMPACTO.txt =====
+CAMPEONES WEB 2.0.1 — Cuadro compacto Copa
+- Vista inicial: cuartos, semifinales y final.
+- Flecha izquierda para desplegar las seis rondas y volver a contraer.
+- Historial de Copa, resultados y actualizacion BGA: sin cambios.
+- Trofeos distintos ya venian en la copia base; encaje unificado y sin recorte.
+- Se conserva la correccion de desplazamiento tactil de la copia aportada.
+- En movil, desplazamiento horizontal conservado por legibilidad.
+- No se ha publicado en Cloudflare Pages.
+
+
+===== NOTAS_ESTADOS_COPA.txt =====
+CAMPEONES 2.0.1 — Etiquetas de estado de Copa
+
+Se elimina la presentación de porcentajes de progreso del cuadro de Copa.
+Estados permitidos: Pase directo, Sin comenzar, Ida · 1.ª parte, Ida · 2.ª parte, Vuelta · 1.ª parte, Vuelta · 2.ª parte, Prórroga y Finalizado.
+
+La fase no puede deducirse de tableProgression. La web consulta el campo deportivo opcional "sportsState" ya publicado en ?match. Se muestra "—" para partidos en curso sin fase acreditada. No representa un noveno estado deportivo.
+
+Contrato JSON requerido para ?match cuando exista estado válido:
+"sportsState": {"leg":1,"half":1,"overtimeRound":0}
+
+La web sigue usando el marcador de detail.players y NO usa los goles del nuevo extractor. La fase se valida solo con esos tres campos (sin exigir tableId ni legs). El Worker conserva source/live/final, sin modificar la fuente visible del marcador.
+
+
+===== NOTAS_REVISION_4.txt =====
+CAMPEONES 2.0.1 - REVISION 4 (NO PUBLICAR SIN VALIDACION)
+
+Puntos 3 y 9: se mejora la lectura manual del Worker y el tratamiento de marcadores por jugador.
+Se incorpora un adaptador de resumen del torneo de Copa condicionado a un ID real, que no figura en este paquete.
+La variable opcional window.CAMPEONES_COPA_TOURNAMENT_ID debe fijarse con el ID acreditado ANTES de cargar copa.js.
+Solo se actualizan mesas ya conocidas o emparejamientos que coincidan de manera unica; los nuevos partidos sin ubicacion confirmada quedan pendientes.
+NO se ha probado acceso real a BGA desde este entorno. NO se ha modificado Worker ni produccion.
+El ZIP incluye el nuevo SVG de Copa elegido por el usuario.
+
+
+===== NOTAS_REVISION_5.txt =====
+CAMPEONES 2.0.1 - REVISION 5, PRUEBA
+Torneo de Copa: 617974 (enlace facilitado por el organizador).
+Se activa la consulta manual del overview desde el Worker.
+El lector contempla jugadores por objeto, lista o campos separados.
+No hay comprobacion en vivo del endpoint de BGA ni sincronizacion dinamica de rondas desconocidas.
+No publicar como version definitiva sin pruebas.
+
+
+===== NOTAS_TROFEOS_2.0.1.txt =====
+Puntos 1 y 2: trofeo de Liga original conservado, nuevo trofeo de Copa en assets/trofeo-copa.svg. Ambos comparten el mismo marco de cabecera. Para actualizar desde revision 2, sustituir index.html y app.js y agregar assets/trofeo-copa.svg. No requiere tocar styles.css.
+
+
+===== NOTA_SCROLL_TACTIL.txt =====
+Campeones 2.0.1 - ajuste del desplazamiento tactil de Copa
+- El contenedor del cuadro ahora permite pan vertical y horizontal.
+- Se evita que flex:1 expanda el cuadro en vez de producir desbordamiento.
+- El desbordamiento vertical vuelve a propagarse a la pagina al llegar al borde.
+- No se modifica copa.js ni la logica deportiva.
+- Pendiente validar el gesto tactil en movil y tableta reales.
+Si ya tienes instalada la 2.0.1, sustituye styles.css e index.html.
+
+
+===== VALIDACION.txt =====
+CAMPEONES — WEB 2.0 INTEGRADA — 04/11/2026
+
+Comprobaciones realizadas:
+- Sintaxis de app.js, copa.js, temporadas.js y cronicas.js: correcta.
+- Referencias de caché actualizadas a 2.3 en CSS y JavaScript.
+- Partido en curso: BGA, incluso si el índice contiene una crónica para esa mesa.
+- Finalizado sin crónica: BGA.
+- Finalizado con crónica publicada: resultado y rectángulo abren el lector.
+- Jornada terminada: oculta Finalizado y mantiene Leer crónica.
+- Jornada incompleta: conserva estados de partidos sin crónica.
+- Rechazo de borradores, temporada distinta, texto vacío, división/jornada incompatibles y mesas duplicadas.
+- Fallo de lectura del índice: conserva último índice válido; no bloquea resultados.
+- Índice actualizado sin crónica: retira el enlace a crónica y recupera BGA.
+- Lector: título y párrafos insertados como texto; no ejecuta HTML suministrado.
+- Cierre del lector y devolución de foco al enlace utilizado.
+- Nombre de jugador y etiqueta temporada 1 en las seis divisiones.
+- Partidos repetidos entre los mismos rivales permanecen separados por mesa y ambos cuentan en la clasificación.
+- Desempates configurados en este orden: puntos directos acumulados, diferencia de goles directa, diferencia de goles general y orden de BGA.
+- Los criterios directos forman una miniliga entre todos los equipos empatados a puntos, incluidos los empates múltiples.
+- Todos los enfrentamientos directos repetidos forman parte de esa miniliga y se acumulan correctamente.
+- Reglamento actualizado con la redacción exacta de los cuatro criterios acordados.
+- Columna División centrada en encabezado y celdas.
+- Punto 6 actualizado con duración de siete días, prohibición de saltar turno y derrota por tiempo con resultado oficial de 3-0.
+- Eliminado el antiguo párrafo sobre la duración aproximada de cada temporada.
+- La lectura del índice no añade consultas BGA ni ejecuta inferencias.
+- Script local: alta, rechazo de duplicados, reemplazo explícito, conservación de otras crónicas e ID numérico.
+- Cabecera común compacta: identidad y división/Copa a la izquierda, selectores de igual ancho en el centro y trofeo a la derecha.
+- Liga y Copa conservan secciones independientes de Campeonato, Participantes, Reglamento e Histórico.
+- El cambio de competición conserva la sección activa.
+- Participantes de Liga mantiene la columna División y la actualización de ELO.
+- Participantes de Copa contiene 41 inscritos, sin columna División y con ELO inicial fijo para todos ellos.
+- Garban figura con 143 ELO, igual que el resto de participantes.
+- Reglamento de Liga comprobado con siete artículos y sin el antiguo punto «Copa y Supercopa».
+- Reglamento de Copa comprobado con los cuatro artículos acordados.
+- Cuadro de Copa completo desde ronda preliminar hasta final, con desplazamiento horizontal.
+- Copa: un único marcador global por eliminatoria y un único enlace BGA sobre el propio marcador.
+- Copa: sin etiquetas «BGA» ni identificadores internos E41/E53; nombres de equipo y jugador visibles.
+- Copa: ventana emergente de recorrido del equipo comprobada.
+- Copa: Garban se muestra como Garban FC.
+- Copa: plazas por decidir representadas mediante «…», sin los textos «Ganador pendiente» y «Pendiente».
+- Copa: accesos «Rondas previas» y «Fase final» desplazan el cuadro a sus extremos.
+- Imágenes de las seis divisiones, cabeceras y tipografías almacenadas localmente; CSS sin recursos visuales externos.
+- Eliminada del paquete la imagen completa del trofeo que ya no utilizaba la web.
+- Históricos independientes para Liga y Copa; sin temporadas cerradas muestran mensajes específicos y ocultan el selector.
+- Histórico: lector de índice, carga por temporada y representación de Liga y Copa archivadas preparados.
+- Histórico archivado: sin enlaces BGA; crónica de Liga opcional desde el marcador y Copa sin enlace.
+- Comprobación visual local realizada en navegador de escritorio para Liga, Copa y ventana de recorrido.
+
+Límites:
+- Pruebas con datos simulados, sin crónicas reales ni despliegue de producción.
+- Índice entregado vacío. No incluye el generador automático de crónicas ni su conexión a un publicador de producción.
+- Escape usa el comportamiento nativo de dialog; apertura/cierre y foco comprobados con el DOM de prueba.
+- Solo existe la temporada 1 actual; no se han inventado archivos de temporadas cerradas.
+- El cuadro de Copa incluido es una instantánea local. Falta conectar su actualización automática al Worker de producción.
+- Conviene repetir la comprobación visual en móvil tras publicar en el entorno real.

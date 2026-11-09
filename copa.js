@@ -138,9 +138,15 @@
     renderBoard($("#cupBracket"), currentRounds, false);
     const toggle = $("#cupRoundsToggle");
     if (toggle) {
+      // La flecha apunta siempre al destino, no al lugar en que estamos.
+      const destination=earlierRoundsExpanded ? "Fase final" : "Rondas anteriores";
       toggle.setAttribute("aria-expanded", String(earlierRoundsExpanded));
-      toggle.setAttribute("aria-label", earlierRoundsExpanded ? "Ocultar rondas anteriores" : "Mostrar rondas anteriores");
-      toggle.title = earlierRoundsExpanded ? "Ocultar rondas anteriores" : "Mostrar rondas anteriores";
+      toggle.setAttribute("aria-label", destination);
+      toggle.title=destination;
+      const label=toggle.querySelector?.(".cup-rounds-toggle-label");
+      const arrow=toggle.querySelector?.(".cup-rounds-toggle-arrow");
+      if(label) label.textContent=destination;
+      if(arrow) arrow.textContent=earlierRoundsExpanded ? "❯" : "❮";
       toggle.classList.toggle("expanded", earlierRoundsExpanded);
     }
   }
@@ -282,26 +288,64 @@
     return `${leg===1 ? "Ida" : "Vuelta"} · ${half===1 ? "1.ª" : "2.ª"} parte`;
   }
   function applySportsPhase(match, detail) {
-    if(match.status==="bye" || match.status==="finished") return false;
+    if(match.status==="bye" || match.officialFinal) return false;
     const phase=phaseFromVerifiedSports(match,detail);
-    // Si el Worker devuelve null o datos incompletos, no conservar fases antiguas.
-    if(match.sportsPhase===phase) return false;
+    // Una respuesta sin estado valido no puede borrar el ultimo estado acreditado.
+    if(!phase) return false;
+    const sports=detail.sportsState;
+    const previous=match.sportsState;
+    if(previous && previous.leg===sports.leg && previous.half===sports.half &&
+       previous.overtimeRound===sports.overtimeRound && match.sportsPhase===phase) return false;
     match.sportsPhase=phase;
+    match.sportsState={leg:detail.sportsState.leg,half:detail.sportsState.half,
+      overtimeRound:detail.sportsState.overtimeRound};
+    match.sportsSavedAt=new Date().toISOString();
     return true;
   }
   function applyValidatedDetail(match, detail) {
     const score=validatedPlayerScores(match,detail);
     if(!score) return false;
+    const isOfficial=detail?.final===true && detail?.source==="tableinfos-final";
+    // El marcador oficial de BGA por ID de jugador tiene prioridad absoluta
+    // sobre cualquier 5-5 provisional que se haya almacenado anteriormente.
+    if(isOfficial){
+      match.score=score;
+      match.status="finished";
+      match.officialFinal=true;
+      match.sportsPhase=null;
+      match.sportsState=null;
+      // Con empate, los goles no identifican al clasificado. Preservamos
+      // exclusivamente un ganador acreditado por el torneo o cache anterior.
+      match.winner=score[0]!==score[1] ? (score[0]>score[1]?match.a:match.b) :
+        (match.officialTournamentWinner || null);
+      return true;
+    }
+    if(match.officialFinal || match.status==="finished") return false;
     match.score=score;
-    if (match.status === "finished" && score[0] !== score[1]) match.winner=score[0] > score[1] ? match.a : match.b;
     return true;
   }
-  function saveCupResults() {
+  function formatCupSavedTime(iso) {
+    const d=new Date(iso);
+    if(!Number.isFinite(d.getTime())) return null;
+    const pad=n=>String(n).padStart(2,"0");
+    return `${d.getDate()}/${d.getMonth()+1}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function setCupSavedStatus(iso) {
+    const el=$("#cupSyncStatus");
+    if(!el) return;
+    const time=formatCupSavedTime(iso);
+    el.textContent=time ? `datos guardados · ${time}` : "sin datos guardados";
+  }
+  function saveCupResults(updatedAt=new Date().toISOString()) {
     try {
-      const matches=currentRounds.flat().filter(m=>m.table && (hasScore(m) || m.status === "finished"))
+      const matches=currentRounds.flat().filter(m=>m.table &&
+        (hasScore(m) || m.status === "finished" || m.sportsState))
         .map(m=>({table:String(m.table),score:hasScore(m)?m.score:null,status:m.status,progress:m.progress,
-          winner:m.winner?.key || null}));
-      localStorage.setItem(CUP_STORAGE,JSON.stringify({version:2,time:new Date().toISOString(),matches}));
+          winner:m.winner?.key || null,officialFinal:!!m.officialFinal,
+          officialTournamentWinner:m.officialTournamentWinner?.key || null,
+          sportsState:m.sportsState || null,sportsSavedAt:m.sportsSavedAt || null}));
+      localStorage.setItem(CUP_STORAGE,JSON.stringify({version:3,time:updatedAt,matches}));
+      setCupSavedStatus(updatedAt);
     }catch(error){console.warn("Copa: no se pudo almacenar el estado",error);}
   }
   function restoreCupResults() {
@@ -315,11 +359,85 @@
         if(item.status === "finished" && hasScore(m)) m.status="finished";
         else if(m.status !== "finished" && item.status === "live") m.status="live";
         if(Number.isFinite(item.progress) && m.status !== "finished") m.progress=item.progress;
-        if(m.status === "finished" && hasScore(m) && m.score[0] !== m.score[1]) m.winner=m.score[0]>m.score[1]?m.a:m.b;
+        // Datos v2 sin firma oficial: nunca se confunden con finales validados.
+        m.officialFinal=raw.version>=3 && item.officialFinal===true;
+        if(m.status === "finished" && hasScore(m)) {
+          m.winner=m.score[0]!==m.score[1] ? (m.score[0]>m.score[1]?m.a:m.b) : null;
+          const officialQualified=[m.a,m.b].find(person=>person?.key===item.officialTournamentWinner);
+          if(officialQualified) {m.officialTournamentWinner=officialQualified;m.winner=officialQualified;}
+        }
+        if(!m.officialFinal && item.sportsState){
+          const phase=phaseFromVerifiedSports(m,{sportsState:item.sportsState});
+          if(phase){
+            m.sportsState=item.sportsState;
+            m.sportsPhase=phase;
+            m.sportsSavedAt=item.sportsSavedAt || raw.time || null;
+          }
+        }
       }
-      // No reescribir la fecha de consulta cuando solo se muestran datos locales.
-      if(raw?.time){const el=$("#cupSyncStatus");if(el)el.textContent=`Última consulta: ${new Date(raw.time).toLocaleString("es-ES")}`;}
+      setCupSavedStatus(raw?.time);
     }catch(error){console.warn("Copa: no se pudo recuperar la copia local",error);}
+  }
+  // El resultado de una mesa y el ganador del cuadro son conceptos distintos.
+  // Solo se reconoce un ganador cuando BGA lo declara expresamente o cuando
+  // aparece como clasificado en la siguiente ronda del torneo.
+  function declaredTournamentWinner(game, entries, players) {
+    const rowName=(entry,key) => {
+      if(typeof entry==="string" || typeof entry==="number") return players.get(String(entry)) || entry;
+      const id=entry?.player_id ?? entry?.playerId ?? entry?.id ?? key;
+      return entry?.player_name ?? entry?.playerName ?? entry?.name ?? players.get(String(id)) ?? null;
+    };
+    const resolved=entries.map(([key,entry])=>({
+      person:resolvePlayer(rowName(entry,key)),
+      id:String(entry?.player_id ?? entry?.playerId ?? entry?.id ?? key),
+      result:String(entry?.result ?? "").toLowerCase().trim()
+    })).filter(row=>row.person);
+    if(resolved.length!==2) return null;
+    const byExplicitId=game?.winner_id ?? game?.winnerId ?? game?.winning_player_id ?? game?.winningPlayerId ?? null;
+    if(byExplicitId!==null && byExplicitId!==undefined) {
+      const found=resolved.filter(row=>row.id===String(byExplicitId));
+      if(found.length===1) return found[0].person;
+    }
+    const byName=game?.winner_name ?? game?.winnerName ?? game?.winningPlayerName ?? null;
+    if(byName) {
+      const person=resolvePlayer(byName);
+      if(person && resolved.filter(row=>row.person.key===person.key).length===1) return person;
+    }
+    const winning=resolved.filter(row=>/^(winner|won|win|victory|qualified|clasificado|gagnant)$/.test(row.result));
+    if(winning.length===1) return winning[0].person;
+    return null;
+  }
+  function tournamentMatchForRow(item) {
+    const byId=item.table ? matchLookup().get(String(item.table)) : null;
+    if(byId) return byId;
+    if(!item.a || !item.b) return null;
+    const pair=[item.a.key,item.b.key].sort().join("|");
+    const matches=currentRounds.flat().filter(m=>m.status!=="bye" && m.a && m.b && !m.a.placeholder && !m.b.placeholder &&
+      [m.a.key,m.b.key].sort().join("|")===pair);
+    return matches.length===1 ? matches[0] : null;
+  }
+  function applyTournamentWinners(rows) {
+    let changed=0;
+    for(const item of rows) {
+      const match=tournamentMatchForRow(item);
+      if(!match || match.status!=="finished" || !match.a || !match.b) continue;
+      let winner=item.officialWinner || null;
+      if(!winner && match.r<currentRounds.length-1) {
+        // Un único contendiente de esta mesa consta en una eliminatoria de la
+        // ronda siguiente. No inferir por orden, puntuación o ELO.
+        const following=rows.filter(next=>next.round===item.round+1);
+        const qualified=new Set(following.flatMap(next=>next.participants || []).map(p=>p.key));
+        const candidates=[match.a,match.b].filter(p=>qualified.has(p.key));
+        if(candidates.length===1) winner=candidates[0];
+      }
+      if(!winner || (winner.key!==match.a.key && winner.key!==match.b.key)) continue;
+      if(match.officialTournamentWinner?.key!==winner.key || match.winner?.key!==winner.key) {
+        match.officialTournamentWinner=winner;
+        match.winner=winner;
+        changed++;
+      }
+    }
+    return changed;
   }
   function overviewRows(payload) {
     const data=payload?.data ?? payload;
@@ -358,16 +476,18 @@
               (players.get(String(v)) || (typeof v==="string" && !/^\d+$/.test(v) ? v : null))).filter(Boolean);
           }
         }
-        if(names.length!==2) continue;
-        const a=resolvePlayer(names[0]),b=resolvePlayer(names[1]);
-        if(!a || !b || a.key===b.key) continue;
+        const participants=[...new Map(names.map(resolvePlayer).filter(Boolean).map(p=>[p.key,p])).values()];
+        if(!participants.length) continue;
+        const a=participants[0] || null,b=participants[1] || null;
+        if(names.length>=2 && (participants.length!==2 || a.key===b.key)) continue;
         const table=game?.tableId ?? game?.table_id ?? game?.table;
         const statusText=String(game?.status ?? "").toLowerCase();
         const tableText=String(game?.tableStatus ?? game?.table_status ?? "").toLowerCase();
         const finished=/finished|complete|archive|ended/.test(`${statusText} ${tableText}`);
         const cancelled=/cancel|void/.test(`${statusText} ${tableText}`);
         const progression=Number(game?.tableProgression ?? game?.table_progression ?? game?.progression);
-        rows.push({round,a,b,table:table ? String(table) : null,
+        rows.push({round,a,b,participants,table:table ? String(table) : null,
+          officialWinner:finished ? declaredTournamentWinner(game,entries,players) : null,
           status:cancelled?"pending":finished?"finished":(table && Number.isFinite(progression) && progression>0)?"live":"pending",
           progress:Number.isFinite(progression) && progression>=0 ? progression : null});
       }
@@ -380,6 +500,7 @@
     let changed=0, unplaced=0;
     const lookup=matchLookup();
     for(const item of rows) {
+      if(!item.a || !item.b) continue;
       let match=item.table ? lookup.get(item.table) : null;
       if(!match){
         const possible=currentRounds.flat().filter(m=>m.status!=="bye" && m.a && m.b && !m.a.placeholder && !m.b.placeholder
@@ -403,7 +524,13 @@
       const next=currentRounds[r+1][Math.floor(match.i/2)];
       if(!next) continue;
       const side=match.i%2===0?"a":"b";
-      if(next[side]?.placeholder){next[side]=winner;added++;}
+      if(next[side]?.placeholder || next._autoQualified?.[side]) {
+        if(next[side]?.key!==winner.key) {
+          next[side]=winner;
+          next._autoQualified={...(next._autoQualified || {}),[side]:true};
+          added++;
+        }
+      }
     }
     return added;
   }
@@ -418,54 +545,63 @@
       return json;
     }finally{clearTimeout(timer);}
   }
-  async function refreshCup(){
-    const button=$("#refreshCupButton"),status=$("#cupSyncStatus");
-    if(button?.disabled) return;
-    if(button){button.disabled=true;button.textContent="Actualizando…";}
-    let fromOverview=0,unplaced=0,checked=0,valid=0,phaseChanged=0,errors=0;
+  async function refreshCup({onlyUnverifiedFinals=false}={}){
+    const button=$("#refreshCupButton");
+    if(!onlyUnverifiedFinals && button?.disabled) return;
+    if(!onlyUnverifiedFinals && button){button.disabled=true;button.textContent="Actualizando…";}
+    let fromOverview=0,changed=0,updated=0;
+    let tournamentRows=[];
     try {
       const tournamentId=configuredTournamentId();
-      if(tournamentId){
+      const pendingTieWinner=currentRounds.flat().some(m=>m.table && m.status==="finished" &&
+        hasScore(m) && m.score[0]===m.score[1] && !m.officialTournamentWinner);
+      if((!onlyUnverifiedFinals || pendingTieWinner) && tournamentId){
         try{
           const overview=await cupFetch(`${CUP_WORKER}/?id=${encodeURIComponent(tournamentId)}&includeElo=0&refresh=1`);
           const rows=overviewRows(overview);
-          if(!rows.length) throw new Error("La respuesta no contiene eliminatorias identificables");
-          const summary=synchronizeOverview(rows);
-          fromOverview=summary.changed;unplaced=summary.unplaced;
-        }catch(error){errors++;console.warn("Copa: fallo al obtener el cuadro del torneo",error);}
+          tournamentRows=rows;
+          if(rows.length){const summary=synchronizeOverview(rows);fromOverview=summary.changed;}
+        }catch(error){console.warn("Copa: fallo al obtener el cuadro del torneo",error);}
       }
       const matches=currentRounds.flat().filter(m=>m.table && m.status!=="bye" &&
-        !(m.status==="finished" && hasScore(m)));
-      // Dos mesas concurrentes, igual que Liga. No tocar resultados finalizados ya validados.
+        (onlyUnverifiedFinals ? m.status==="finished" && !m.officialFinal : !m.officialFinal));
       for(let i=0;i<matches.length;i+=2){
         await Promise.all(matches.slice(i,i+2).map(async match=>{
           try{
-            const detail=await cupFetch(`${CUP_WORKER}/?match=${encodeURIComponent(match.table)}${match.status==="finished"?"&archived=1":""}&retry=1`);
-            checked++;
-            // La fase se lee separadamente del marcador; no lo sustituye.
-            if(applySportsPhase(match,detail)) phaseChanged++;
-            if(applyValidatedDetail(match,detail)) valid++;
-          }catch(error){errors++;console.warn("Copa: error al consultar mesa",match.table,error);}
+            // Un estado final solo se acepta desde tableinfos-final; un dato
+            // provisional nunca puede validar ni sobrescribir ese resultado.
+            const detail=await cupFetch(`${CUP_WORKER}/?match=${encodeURIComponent(match.table)}&retry=1`);
+            updated++;
+            if(applySportsPhase(match,detail)) changed++;
+            if(applyValidatedDetail(match,detail)) changed++;
+          }catch(error){console.warn("Copa: error al consultar mesa",match.table,error);}
         }));
       }
+      const tournamentWinners=applyTournamentWinners(tournamentRows);
       const propagated=propagateKnownWinners();
-      if(valid || fromOverview || propagated) saveCupResults();
-      if(valid || fromOverview || propagated || phaseChanged) render();
-      if(status) {
-        const note=`${valid} marcador(es) verificados; ${fromOverview} partido(s) vinculados al cuadro`;
-        const limitations=[];
-        if(!tournamentId) limitations.push("sin ID de torneo configurado");
-        if(unplaced) limitations.push(`${unplaced} emparejamiento(s) por ubicar`);
-        if(errors) limitations.push(`${errors} consulta(s) fallidas`);
-        if(!valid && !fromOverview) limitations.push("se conservan los datos anteriores");
-        status.textContent=`${note} · ${new Date().toLocaleTimeString("es-ES")}${limitations.length?` · ${limitations.join("; ")}`:""}`;
+      if(updated || fromOverview || changed || tournamentWinners || propagated) {
+        saveCupResults();
+        render();
       }
-    }finally{if(button){button.disabled=false;button.textContent="Actualizar datos";}}
+    }finally{
+      if(!onlyUnverifiedFinals && button){button.disabled=false;button.textContent="Actualizar datos";}
+    }
+  }
+  // Solo se revisan automáticamente los finales no acreditados en caché.
+  // Los estados deportivos válidos se recuperan de inmediato de localStorage.
+  async function refreshUnverifiedFinals(){
+    if(typeof fetch!=="function") return;
+    if(currentRounds.flat().some(m=>m.table && m.status==="finished" &&
+      (!m.officialFinal || (hasScore(m) && m.score[0]===m.score[1] && !m.officialTournamentWinner))))
+      await refreshCup({onlyUnverifiedFinals:true});
   }
   restoreCupResults();
   propagateKnownWinners();
+  // No bloquear la primera pintura: validar finales antiguos en segundo plano.
+  setTimeout(()=>{refreshUnverifiedFinals().catch(error=>console.warn("Copa: revisión de finales",error));},0);
   $("#refreshCupButton")?.addEventListener("click",refreshCup);
-  window.CampeonesCopaDebug={overviewRows,validatedPlayerScores,synchronizeOverview,refreshCup};
+  window.CampeonesCopaDebug={overviewRows,validatedPlayerScores,synchronizeOverview,applyTournamentWinners,
+    applyValidatedDetail,propagateKnownWinners,resolvedWinner,refreshCup,refreshUnverifiedFinals,currentRounds};
   window.CampeonesCopa={render,renderArchive,renderParticipants};
   render();
 })();
