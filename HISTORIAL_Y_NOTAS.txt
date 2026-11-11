@@ -165,3 +165,8 @@ Límites:
 - Solo existe la temporada 1 actual; no se han inventado archivos de temporadas cerradas.
 - El cuadro de Copa incluido es una instantánea local. Falta conectar su actualización automática al Worker de producción.
 - Conviene repetir la comprobación visual en móvil tras publicar en el entorno real.
+
+
+VERSIÓN 2.0.4 — 11/11/2026
+- Copa abre automáticamente en la ronda vigente, priorizando la ronda más avanzada con partidos en juego; en ausencia de partidas activas, muestra la ronda pendiente más avanzada con mesa y participantes acreditados.
+- Conservados los controles para navegar entre rondas anteriores y fase final. No se modifican marcadores ni resultados.

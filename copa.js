@@ -116,9 +116,37 @@
     return `<article class="cup-tie${bye ? " cup-tie-bye" : ""}" data-cup-match="${match.id}"><div class="cup-tie-body"><div class="cup-team-list">${contents}</div></div><div class="cup-status ${stateClass}">${state(match)}</div></article>`;
   }
 
-  // La Copa actual abre por defecto solo cuartos, semifinales y final.
+  // 2.0.4: al entrar en Copa, abrir la ronda vigente (no siempre la fase final).
+  // Entre varias rondas iniciadas, prevalece la mas avanzada con partidos vivos.
+  // Si ninguna esta en juego, elegimos la ronda mas avanzada con partidos
+  // asignados pendientes y, finalmente, la ultima ronda con finales acreditados.
+  function currentCupRound() {
+    const hasActualPlayers = match => match.a && match.b &&
+      !match.a.placeholder && !match.b.placeholder;
+    for (const status of ["live", "pending", "finished"]) {
+      for (let r = currentRounds.length - 1; r >= 0; r--) {
+        if (currentRounds[r].some(match => match.table && hasActualPlayers(match) &&
+          match.status === status)) return r;
+      }
+    }
+    return 0;
+  }
   // El historico conserva su cuadro y comportamiento completos.
   let earlierRoundsExpanded = false;
+
+  function showCurrentCupRound() {
+    const round = currentCupRound();
+    earlierRoundsExpanded = round < Math.max(0, currentRounds.length - 3);
+    render();
+    // Tras hacer visible la pagina, medir la posicion real de la columna.
+    requestAnimationFrame(() => {
+      const scroll = $("#cupBracketScroll");
+      const board = $("#cupBracket");
+      const column = board?.querySelector(`[data-cup-round="${round}"]`);
+      if (!scroll || !column || $("#cupPage")?.hidden) return;
+      scroll.scrollTo({left: Math.max(0, scroll.scrollLeft + column.getBoundingClientRect().left - scroll.getBoundingClientRect().left), top: 0, behavior: "instant"});
+    });
+  }
 
   function renderBoard(host, rounds, archived=false) {
     if (!host) return;
@@ -603,5 +631,9 @@
   window.CampeonesCopaDebug={overviewRows,validatedPlayerScores,synchronizeOverview,applyTournamentWinners,
     applyValidatedDetail,propagateKnownWinners,resolvedWinner,refreshCup,refreshUnverifiedFinals,currentRounds};
   window.CampeonesCopa={render,renderArchive,renderParticipants};
+  document.addEventListener("campeones:pagechange", event => {
+    if (event.detail?.page === "cup" && event.detail?.competition === "cup")
+      showCurrentCupRound();
+  });
   render();
 })();
