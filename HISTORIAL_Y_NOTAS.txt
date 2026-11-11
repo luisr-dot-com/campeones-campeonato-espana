@@ -170,3 +170,6 @@ Límites:
 VERSIÓN 2.0.4 — 11/11/2026
 - Copa abre automáticamente en la ronda vigente, priorizando la ronda más avanzada con partidos en juego; en ausencia de partidas activas, muestra la ronda pendiente más avanzada con mesa y participantes acreditados.
 - Conservados los controles para navegar entre rondas anteriores y fase final. No se modifican marcadores ni resultados.
+
+CORRECCION DE PERSISTENCIA 2.0.4 — 11/11/2026
+Se guarda y restaura la posición C{ronda}-{indice}, la pareja acreditada y el identificador de mesa de encuentros añadidos dinamicamente desde el torneo. Impide perder resultados y estados al volver a entrar en Copa. No modifica Worker ni Liga.

@@ -364,45 +364,91 @@
     const time=formatCupSavedTime(iso);
     el.textContent=time ? `datos guardados · ${time}` : "sin datos guardados";
   }
+  // Persistir también la posición de cada eliminatoria y la pareja acreditada.
+  // Algunas mesas de rondas posteriores solo reciben su tableId al consultar
+  // el torneo: al reabrir la web, el cuadro estático todavía no conoce ese ID.
   function saveCupResults(updatedAt=new Date().toISOString()) {
     try {
-      const matches=currentRounds.flat().filter(m=>m.table &&
-        (hasScore(m) || m.status === "finished" || m.sportsState))
-        .map(m=>({table:String(m.table),score:hasScore(m)?m.score:null,status:m.status,progress:m.progress,
+      const matches=currentRounds.flat().filter(m=>m.table && m.status!=="bye")
+        .map(m=>({id:m.id,table:String(m.table),
+          aKey:m.a?.placeholder ? null : m.a?.key || null,
+          bKey:m.b?.placeholder ? null : m.b?.key || null,
+          score:hasScore(m)?m.score:null,status:m.status,progress:m.progress,
           winner:m.winner?.key || null,officialFinal:!!m.officialFinal,
           officialTournamentWinner:m.officialTournamentWinner?.key || null,
           sportsState:m.sportsState || null,sportsSavedAt:m.sportsSavedAt || null}));
-      localStorage.setItem(CUP_STORAGE,JSON.stringify({version:3,time:updatedAt,matches}));
+      localStorage.setItem(CUP_STORAGE,JSON.stringify({version:4,time:updatedAt,matches}));
       setCupSavedStatus(updatedAt);
     }catch(error){console.warn("Copa: no se pudo almacenar el estado",error);}
   }
   function restoreCupResults() {
     try {
       const raw=JSON.parse(localStorage.getItem(CUP_STORAGE)||"null");
+      const saved=Array.isArray(raw?.matches) ? raw.matches : [];
       const byTable=matchLookup();
-      for(const item of raw?.matches || []) {
-        const m=byTable.get(String(item.table));
-        if(!m || m.status === "bye") continue;
-        if(Array.isArray(item.score) && item.score.length === 2 && item.score.every(Number.isInteger) && item.score.every(n=>n>=0)) m.score=item.score;
-        if(item.status === "finished" && hasScore(m)) m.status="finished";
-        else if(m.status !== "finished" && item.status === "live") m.status="live";
-        if(Number.isFinite(item.progress) && m.status !== "finished") m.progress=item.progress;
-        // Datos v2 sin firma oficial: nunca se confunden con finales validados.
+      const byId=new Map(currentRounds.flat().map(m=>[m.id,m]));
+      const byPlayerKey=new Map(Object.values(P).map(person=>[person.key,person]));
+
+      function restoreMatch(m,item) {
+        if(!m || m.status==="bye") return;
+        if(Array.isArray(item.score) && item.score.length===2 &&
+          item.score.every(n=>Number.isSafeInteger(n) && n>=0)) m.score=[...item.score];
+        if(item.status==="finished" && hasScore(m)) m.status="finished";
+        else if(m.status!=="finished" && item.status==="live") m.status="live";
+        if(Number.isFinite(item.progress) && m.status!=="finished") m.progress=item.progress;
+        // Los registros antiguos sin certificación no se elevan a finales oficiales.
         m.officialFinal=raw.version>=3 && item.officialFinal===true;
-        if(m.status === "finished" && hasScore(m)) {
+        if(m.status==="finished" && hasScore(m)) {
           m.winner=m.score[0]!==m.score[1] ? (m.score[0]>m.score[1]?m.a:m.b) : null;
-          const officialQualified=[m.a,m.b].find(person=>person?.key===item.officialTournamentWinner);
-          if(officialQualified) {m.officialTournamentWinner=officialQualified;m.winner=officialQualified;}
+          const qualified=[m.a,m.b].find(person=>person?.key===item.officialTournamentWinner);
+          if(qualified) {m.officialTournamentWinner=qualified;m.winner=qualified;}
         }
-        if(!m.officialFinal && item.sportsState){
+        if(!m.officialFinal && item.sportsState) {
           const phase=phaseFromVerifiedSports(m,{sportsState:item.sportsState});
-          if(phase){
-            m.sportsState=item.sportsState;
+          if(phase) {
+            m.sportsState={leg:item.sportsState.leg,half:item.sportsState.half,
+              overtimeRound:item.sportsState.overtimeRound};
             m.sportsPhase=phase;
             m.sportsSavedAt=item.sportsSavedAt || raw.time || null;
           }
         }
       }
+
+      // 1. Recuperar las mesas que el cuadro inicial ya conoce, incluidas
+      // las eliminatorias preliminares que determinan plazas posteriores.
+      const restored=new Set();
+      for(const item of saved) {
+        const m=byTable.get(String(item?.table));
+        if(!m) continue;
+        restoreMatch(m,item);
+        restored.add(m.id);
+      }
+      propagateKnownWinners();
+
+      // 2. Reconstruir las mesas incorporadas dinámicamente desde el torneo.
+      // Se exige posición válida, jugadores conocidos y ningún conflicto con
+      // la pareja ya presente. No reconstruimos ganadores a partir de goles.
+      for(const item of saved) {
+        if(raw.version<4 || !/^C[0-5]-\d+$/.test(String(item?.id||""))) continue;
+        const m=byId.get(item.id);
+        if(!m || m.status==="bye" || restored.has(m.id)) continue;
+        if(!/^\d+$/.test(String(item.table||""))) continue;
+        if(m.table && String(m.table)!==String(item.table)) continue;
+        const a=byPlayerKey.get(item.aKey),b=byPlayerKey.get(item.bKey);
+        if(!a || !b || a.key===b.key) continue;
+        if((m.a && !m.a.placeholder && m.a.key!==a.key) ||
+           (m.b && !m.b.placeholder && m.b.key!==b.key)) continue;
+        // No asociar una mesa guardada a otra posición o mesa del cuadro.
+        const existing=byTable.get(String(item.table));
+        if(existing && existing!==m) continue;
+        if(m.a?.placeholder || !m.a) m.a=a;
+        if(m.b?.placeholder || !m.b) m.b=b;
+        m.table=String(item.table);
+        byTable.set(m.table,m);
+        restoreMatch(m,item);
+        restored.add(m.id);
+      }
+      propagateKnownWinners();
       setCupSavedStatus(raw?.time);
     }catch(error){console.warn("Copa: no se pudo recuperar la copia local",error);}
   }
